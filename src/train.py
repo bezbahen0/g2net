@@ -16,7 +16,7 @@ from dataset import Dataset
 from models.model import Model
 
 
-def evaluate(model, loader_val, device, *, compute_score=True, pbar=None):
+def evaluate(model, loader_val, device, *, compute_score=True, verbose=False):
     """
     Predict and compute loss and score
     """
@@ -31,8 +31,8 @@ def evaluate(model, loader_val, device, *, compute_score=True, pbar=None):
     y_all = []
     y_pred_all = []
 
-    if pbar is not None:
-        pbar = tqdm(desc="Predict", nrows=78, total=pbar)
+    if verbose:
+        pbar = tqdm(desc="Predict", nrows=78, total=len(loader_val))
 
     for img, y in loader_val:
         n = y.size(0)
@@ -40,7 +40,8 @@ def evaluate(model, loader_val, device, *, compute_score=True, pbar=None):
         y = y.to(device)
 
         with torch.no_grad():
-            y_pred = model(img.to(device))
+            y_pred = model(img)
+            
         loss = criterion(y_pred.view(-1), y)
 
         n_sum += n
@@ -49,10 +50,9 @@ def evaluate(model, loader_val, device, *, compute_score=True, pbar=None):
         y_all.append(y.cpu().detach().numpy())
         y_pred_all.append(y_pred.sigmoid().squeeze().cpu().detach().numpy())
 
-        if pbar is not None:
-            pbar.update(len(img))
+        if verbose:
+            pbar.update()
 
-        del loss, y_pred, img, y
 
     loss_val = loss_sum / n_sum
 
