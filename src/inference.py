@@ -14,7 +14,6 @@ from train import evaluate
 
 
 def predict(model_name, models_path, data_path, data_csv_path, submission_path, batch_size, n_workers, device, logger):
-    # Predict
     submit = pd.read_csv(data_csv_path)
     dataset_test = Dataset("test", data_path, submit)
     loader_test = torch.utils.data.DataLoader(
@@ -30,7 +29,6 @@ def predict(model_name, models_path, data_path, data_csv_path, submission_path, 
         test = evaluate(model, loader_test, device, compute_score=False, verbose=True)
         preds.append(test["y_pred"])
 
-    # Write prediction
     submit["target"] = np.mean(preds, axis=0)
     submit.to_csv(submission_path, index=False)
 

@@ -32,19 +32,3 @@ class Dataset(torch.utils.data.Dataset):
         img = np.load(filename)       
 
         return img, y
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-
-    df = pd.read_csv(os.path.join("../data/raw/g2net-detecting-continuous-gravitational-waves/", "train_labels.csv"))
-    dataset = Dataset('train', "../data/raw/g2net-detecting-continuous-gravitational-waves/", df)
-    
-    img, y = dataset[10]
-
-    plt.figure(figsize=(8, 3))
-    plt.title('Spectrogram')
-    plt.xlabel('time')
-    plt.ylabel('frequency')
-    plt.imshow(img[0, 300:360])  # zooming in for dataset[10]
-    plt.colorbar()
-    plt.show()

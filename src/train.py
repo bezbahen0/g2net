@@ -12,10 +12,9 @@ from timm.scheduler import CosineLRScheduler
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold
 
-from dataset import Dataset
-from models.model import Model
+from .dataset import Dataset
+from .models.model import Model
 
-from icecream import ic
 
 def evaluate(model, loader_val, device, *, compute_score=True, verbose=False):
     """

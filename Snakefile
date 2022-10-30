@@ -12,7 +12,7 @@ rule test_model:
         "data/submission/submission.csv",
     shell:
         """
-        python3 inference.py --data_path {input[0]} \
+        python3 -m src.inference --data_path {input[0]} \
             --models_path {input[1]} \
             --submission_path {output} \
             --batch_size=24
@@ -27,7 +27,7 @@ rule train_model:
         "data/trained_models",
     shell:
         """
-        python train.py --data_path {input[0]} \
+        python -m src.train --data_path {input[0]} \
             --data_csv_path {input[1]} \
             --model_save_path {output} \
             --batch_size 24
@@ -43,11 +43,12 @@ rule processing_test_data:
         "data/processed/test_labels.csv",
     shell:
         """
-        python processing.py --data {input[0]} \
+        python -m src.processing --data {input[0]} \
             --data_csv {input[1]} \
             --output {output[0]} \
             --output_csv {output[1]} \
-            --mode test
+            --mode test \
+            --n_workers 3
         """
 
 
@@ -60,9 +61,10 @@ rule processing_train_data:
         "data/processed/train_labels.csv",
     shell:
         """
-        python processing.py --data {input[0]} \
+        python -m src.processing --data {input[0]} \
             --data_csv {input[1]} \
             --output {output[0]} \
             --output_csv {output[1]} \
-            --mode train
+            --mode train \
+            --n_workers 3
         """
