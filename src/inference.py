@@ -13,15 +13,15 @@ from dataset import Dataset
 from train import evaluate
 
 
-def predict(model_name, models_path, data_path, batch_size, n_workers, device, logger):
+def predict(model_name, models_path, data_path, data_csv_path, submission_path, batch_size, n_workers, device, logger):
     # Predict
-    submit = pd.read_csv(os.path.join(data_path, "sample_submission.csv"))
+    submit = pd.read_csv(data_csv_path)
     dataset_test = Dataset("test", data_path, submit)
     loader_test = torch.utils.data.DataLoader(
         dataset_test, batch_size=batch_size, num_workers=n_workers, pin_memory=True
     )
     preds = []
-    for model_path in glob.glob(os.path.join(models_path, "*.pytorch")):
+    for model_path in glob.glob(os.path.join(models_path, "*.pt")):
         model = Model(model_name, pretrained=False)
         model.to(device)
         model.load_state_dict(torch.load(model_path, map_location=device))
@@ -32,14 +32,16 @@ def predict(model_name, models_path, data_path, batch_size, n_workers, device, l
 
     # Write prediction
     submit["target"] = np.mean(preds, axis=0)
-    submit.to_csv("submission.csv", index=False)
+    submit.to_csv(submission_path, index=False)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name", type=str, default="tf_efficientnet_b5_ns")
     parser.add_argument("--data_path", type=str)
+    parser.add_argument("--data_csv_path", type=str)
     parser.add_argument("--models_path", type=str)
+    parser.add_argument("--submission_path", type=str)
     parser.add_argument("--device", type=str, default="cuda")
 
     parser.add_argument("--batch_size", type=int, default=32)
@@ -50,11 +52,15 @@ def main():
 
     logger = logging.getLogger(__name__)
     logger.info("--INFERENCE MODEL--")
+    logger.info(f"config arguments: {args}")
+
     predict(
         args.model_name,
         args.models_path,
         args.data_path,
+        args.data_csv_path,
         #args.quantile,
+        args.submission_path,
         args.batch_size,
         args.n_workers,
         args.device,
@@ -63,4 +69,7 @@ def main():
 
 
 if __name__ == "__main__":
+    log_fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    logging.basicConfig(level=logging.INFO, format=log_fmt)
+
     main()

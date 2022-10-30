@@ -15,6 +15,7 @@ from sklearn.model_selection import StratifiedKFold
 from dataset import Dataset
 from models.model import Model
 
+from icecream import ic
 
 def evaluate(model, loader_val, device, *, compute_score=True, verbose=False):
     """
@@ -32,18 +33,19 @@ def evaluate(model, loader_val, device, *, compute_score=True, verbose=False):
     y_pred_all = []
 
     if verbose:
-        pbar = tqdm(desc="Predict", nrows=78, total=len(loader_val))
-
+        pbar = tqdm(desc="Predict", total=len(loader_val))
+    ic()
     for img, y in loader_val:
+        ic()
         n = y.size(0)
         img = img.to(device)
         y = y.to(device)
-
+        ic()
         with torch.no_grad():
             y_pred = model(img)
-            
+        ic()
         loss = criterion(y_pred.view(-1), y)
-
+        ic()
         n_sum += n
         loss_sum += n * loss.item()
 
@@ -55,10 +57,10 @@ def evaluate(model, loader_val, device, *, compute_score=True, verbose=False):
 
 
     loss_val = loss_sum / n_sum
-
+    
     y = np.concatenate(y_all)
     y_pred = np.concatenate(y_pred_all)
-
+    
     score = roc_auc_score(y, y_pred) if compute_score else None
 
     ret = {
@@ -76,6 +78,7 @@ def evaluate(model, loader_val, device, *, compute_score=True, verbose=False):
 
 def train(
     data_path,
+    data_csv_path, 
     model_name,
     model_save_path,
     nfold,
@@ -92,8 +95,7 @@ def train(
 ):
     kfold = StratifiedKFold(n_splits=nfold, random_state=random_state, shuffle=True)
 
-    df = pd.read_csv(os.path.join(data_path, "train_labels.csv"))
-    df = df[df.target >= 0]
+    df = pd.read_csv(data_csv_path)
     dataset = Dataset("train", data_path, df)
 
     for ifold, (idx_train, idx_test) in enumerate(kfold.split(dataset, df["target"])):
@@ -157,21 +159,21 @@ def train(
                 y = y.to(device)
 
                 optimizer.zero_grad()
-
+                #ic()
                 y_pred = model(img)
                 loss = criterion(y_pred.view(-1), y)
-
+                #ic()
                 loss_train = loss.item()
                 loss_sum += n * loss_train
                 n_sum += n
-
+                #ic()
                 loss.backward()
 
                 grad_norm = torch.nn.utils.clip_grad_norm_(
                     model.parameters(), max_grad_norm
                 )
                 optimizer.step()
-
+                #ic()
                 scheduler.step(iepoch * nbatch + ibatch + 1)
                 lrs.append(optimizer.param_groups[0]["lr"])
 
@@ -180,19 +182,19 @@ def train(
             time_val += val["time"]
             loss_train = loss_sum / n_sum
             lr_now = optimizer.param_groups[0]["lr"]
-            dt = (time.time() - tb) / 60
+            dt = (time.time() - tb)
             logger.info(
-                "Epoch %d %.4f %.4f %.4f  %.2e  %.2f min"
+                "Epoch %d %.4f %.4f %.4f  %.2e  %.2f sec"
                 % (iepoch + 1, loss_train, val["loss"], val["score"], lr_now, dt)
             )
 
         dt = time.time() - tb
         logger.info(
-            "Training done %.2f min total, %.2f min val" % (dt / 60, time_val / 60)
+            "Training done %.2f sec total, %.2f sec val" % (dt, time_val)
         )
 
         # Save model
-        ofilename = os.path.join(model_save_path, f"model_{ifold}.pytorch")
+        ofilename = os.path.join(model_save_path, f"model_{ifold}.pt")
         torch.save(model.state_dict(), ofilename)
         logger.info(f" model saved to: {ofilename}")
 
@@ -200,6 +202,7 @@ def train(
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_path", type=str)
+    parser.add_argument("--data_csv_path", type=str)
     parser.add_argument("--model_save_path", type=str)
     parser.add_argument("--model_type", type=str, default="tf_efficientnet_b5_ns")
     parser.add_argument("--device", type=str, default="cuda")
@@ -218,9 +221,11 @@ def main():
 
     logger = logging.getLogger(__name__)
     logger.info("--TRAIN MODEL--")
+    logger.info(f"config arguments: {args}")
 
     train(
         args.data_path,
+        args.data_csv_path,
         args.model_type,
         args.model_save_path,
         args.nfold,
