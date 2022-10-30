@@ -33,18 +33,18 @@ def evaluate(model, loader_val, device, *, compute_score=True, verbose=False):
 
     if verbose:
         pbar = tqdm(desc="Predict", total=len(loader_val))
-    ic()
+    
     for img, y in loader_val:
-        ic()
+        
         n = y.size(0)
         img = img.to(device)
         y = y.to(device)
-        ic()
+
         with torch.no_grad():
             y_pred = model(img)
-        ic()
+
         loss = criterion(y_pred.view(-1), y)
-        ic()
+        
         n_sum += n
         loss_sum += n * loss.item()
 
@@ -95,15 +95,16 @@ def train(
     kfold = StratifiedKFold(n_splits=nfold, random_state=random_state, shuffle=True)
 
     df = pd.read_csv(data_csv_path)
-    dataset = Dataset("train", data_path, df)
+    dataset = Dataset(data_path, df)
 
+    models = {"kfold" : nfold, "folds" : []}
     for ifold, (idx_train, idx_test) in enumerate(kfold.split(dataset, df["target"])):
         logger.info("Fold %d/%d" % (ifold, nfold))
         torch.manual_seed(42 + ifold + 1)
 
         # Train - val split
-        dataset_train = Dataset("train", data_path, df.iloc[idx_train])
-        dataset_val = Dataset("train", data_path, df.iloc[idx_test])
+        dataset_train = Dataset(data_path, df.iloc[idx_train])
+        dataset_val = Dataset(data_path, df.iloc[idx_test])
 
         loader_train = torch.utils.data.DataLoader(
             dataset_train,
@@ -158,21 +159,21 @@ def train(
                 y = y.to(device)
 
                 optimizer.zero_grad()
-                #ic()
+                
                 y_pred = model(img)
                 loss = criterion(y_pred.view(-1), y)
-                #ic()
+                
                 loss_train = loss.item()
                 loss_sum += n * loss_train
                 n_sum += n
-                #ic()
+                
                 loss.backward()
 
                 grad_norm = torch.nn.utils.clip_grad_norm_(
                     model.parameters(), max_grad_norm
                 )
                 optimizer.step()
-                #ic()
+                
                 scheduler.step(iepoch * nbatch + ibatch + 1)
                 lrs.append(optimizer.param_groups[0]["lr"])
 
@@ -192,10 +193,13 @@ def train(
             "Training done %.2f sec total, %.2f sec val" % (dt, time_val)
         )
 
-        # Save model
-        ofilename = os.path.join(model_save_path, f"model_{ifold}.pt")
-        torch.save(model.state_dict(), ofilename)
-        logger.info(f" model saved to: {ofilename}")
+        # Save fold model params
+        fold_name = f"model_fold_{ifold}"
+        models[f"model_fold_{ifold}"] = model.state_dict()
+        models["folds"].append(fold_name)
+    
+    torch.save(models, model_save_path)
+    logger.info(f" model saved to: {model_save_path}")
 
 
 def main():

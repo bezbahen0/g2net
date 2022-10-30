@@ -13,8 +13,7 @@ class Dataset(torch.utils.data.Dataset):
       img (np.float32): 2 x 360 x 128
       y (np.float32): label 0 or 1
     """
-    def __init__(self, data_type, data_path, df):
-        self.data_type = data_type
+    def __init__(self, data_path, df):
         self.data_path = data_path
         self.df = df
 
@@ -28,7 +27,7 @@ class Dataset(torch.utils.data.Dataset):
         r = self.df.iloc[i]
         y = np.float32(r.target)
         file_id = r.id
-        filename = f'{self.data_path}/{self.data_type}/{file_id}.npy'
+        filename = f'{self.data_path}/{file_id}.npy'
         img = np.load(filename)       
 
         return img, y

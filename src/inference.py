@@ -8,22 +8,34 @@ import torch
 import pandas as pd
 import numpy as np
 
-from models.model import Model
-from dataset import Dataset
-from train import evaluate
+from .models.model import Model
+from .dataset import Dataset
+from .train import evaluate
 
 
-def predict(model_name, models_path, data_path, data_csv_path, submission_path, batch_size, n_workers, device, logger):
+def predict(
+    model_name,
+    models_path,
+    data_path,
+    data_csv_path,
+    submission_path,
+    batch_size,
+    n_workers,
+    device,
+    logger,
+):
     submit = pd.read_csv(data_csv_path)
-    dataset_test = Dataset("test", data_path, submit)
+    dataset_test = Dataset(data_path, submit)
     loader_test = torch.utils.data.DataLoader(
         dataset_test, batch_size=batch_size, num_workers=n_workers, pin_memory=True
     )
+
+    checkpoint = torch.load(models_path)
     preds = []
-    for model_path in glob.glob(os.path.join(models_path, "*.pt")):
+    for model_fold in checkpoint["folds"]:
         model = Model(model_name, pretrained=False)
         model.to(device)
-        model.load_state_dict(torch.load(model_path, map_location=device))
+        model.load_state_dict(checkpoint[model_fold])
         model.eval()
 
         test = evaluate(model, loader_test, device, compute_score=False, verbose=True)
@@ -44,7 +56,7 @@ def main():
 
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--n_workers", type=int, default=6)
-    #parser.add_argument("--quantile", type=float)
+    # parser.add_argument("--quantile", type=float)
 
     args = parser.parse_args()
 
@@ -57,7 +69,7 @@ def main():
         args.models_path,
         args.data_path,
         args.data_csv_path,
-        #args.quantile,
+        # args.quantile,
         args.submission_path,
         args.batch_size,
         args.n_workers,
