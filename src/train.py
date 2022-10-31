@@ -145,15 +145,16 @@ def train(
         time_val = 0.0
         lrs = []
 
+        train_losses = []
+        val_losses = []
+        scores = []
+        
         tb = time.time()
         logger.info("Epoch   loss          score   lr")
         for iepoch in range(epochs):
             loss_sum = 0.0
             n_sum = 0
 
-            train_losses = []
-            val_losses = []
-            scores = []
             # Train
             for ibatch, (img, y) in enumerate(loader_train):
                 n = y.size(0)
