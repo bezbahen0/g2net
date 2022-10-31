@@ -35,7 +35,7 @@ def predict(
     for model_fold in checkpoint["folds"]:
         model = Model(model_name, pretrained=False)
         model.to(device)
-        model.load_state_dict(checkpoint[model_fold])
+        model.load_state_dict(checkpoint[model_fold]['model'])
         model.eval()
 
         test = evaluate(model, loader_test, device, compute_score=False, verbose=True)

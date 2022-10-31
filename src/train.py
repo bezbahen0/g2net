@@ -33,9 +33,9 @@ def evaluate(model, loader_val, device, *, compute_score=True, verbose=False):
 
     if verbose:
         pbar = tqdm(desc="Predict", total=len(loader_val))
-    
+
     for img, y in loader_val:
-        
+
         n = y.size(0)
         img = img.to(device)
         y = y.to(device)
@@ -44,7 +44,7 @@ def evaluate(model, loader_val, device, *, compute_score=True, verbose=False):
             y_pred = model(img)
 
         loss = criterion(y_pred.view(-1), y)
-        
+
         n_sum += n
         loss_sum += n * loss.item()
 
@@ -54,12 +54,11 @@ def evaluate(model, loader_val, device, *, compute_score=True, verbose=False):
         if verbose:
             pbar.update()
 
-
     loss_val = loss_sum / n_sum
-    
+
     y = np.concatenate(y_all)
     y_pred = np.concatenate(y_pred_all)
-    
+
     score = roc_auc_score(y, y_pred) if compute_score else None
 
     ret = {
@@ -77,7 +76,7 @@ def evaluate(model, loader_val, device, *, compute_score=True, verbose=False):
 
 def train(
     data_path,
-    data_csv_path, 
+    data_csv_path,
     model_name,
     model_save_path,
     nfold,
@@ -97,7 +96,7 @@ def train(
     df = pd.read_csv(data_csv_path)
     dataset = Dataset(data_path, df)
 
-    models = {"kfold" : nfold, "folds" : []}
+    models = {"kfold": nfold, "folds": [], "epochs": epochs, "scores": []}
     for ifold, (idx_train, idx_test) in enumerate(kfold.split(dataset, df["target"])):
         logger.info("Fold %d/%d" % (ifold, nfold))
         torch.manual_seed(42 + ifold + 1)
@@ -152,6 +151,9 @@ def train(
             loss_sum = 0.0
             n_sum = 0
 
+            train_losses = []
+            val_losses = []
+            scores = []
             # Train
             for ibatch, (img, y) in enumerate(loader_train):
                 n = y.size(0)
@@ -159,47 +161,68 @@ def train(
                 y = y.to(device)
 
                 optimizer.zero_grad()
-                
+
                 y_pred = model(img)
                 loss = criterion(y_pred.view(-1), y)
-                
+
                 loss_train = loss.item()
                 loss_sum += n * loss_train
                 n_sum += n
-                
+
                 loss.backward()
 
                 grad_norm = torch.nn.utils.clip_grad_norm_(
                     model.parameters(), max_grad_norm
                 )
                 optimizer.step()
-                
+
                 scheduler.step(iepoch * nbatch + ibatch + 1)
                 lrs.append(optimizer.param_groups[0]["lr"])
 
             # Evaluate
             val = evaluate(model, loader_val, device)
+
             time_val += val["time"]
+
             loss_train = loss_sum / n_sum
             lr_now = optimizer.param_groups[0]["lr"]
-            dt = (time.time() - tb)
+
+            dt = time.time() - tb
+
+            train_losses.append(loss_train)
+            val_losses.append(val["loss"])
+            scores.append(val["score"])
+
             logger.info(
                 "Epoch %d %.4f %.4f %.4f  %.2e  %.2f sec"
                 % (iepoch + 1, loss_train, val["loss"], val["score"], lr_now, dt)
             )
 
         dt = time.time() - tb
-        logger.info(
-            "Training done %.2f sec total, %.2f sec val" % (dt, time_val)
-        )
+        logger.info("Training done %.2f sec total, %.2f sec val" % (dt, time_val))
 
         # Save fold model params
         fold_name = f"model_fold_{ifold}"
-        models[f"model_fold_{ifold}"] = model.state_dict()
+        val = evaluate(model, loader_val, device)
+
+        models[f"model_fold_{ifold}"] = {
+            "model": model.state_dict(),
+            "score": val["score"],
+            "loss": val["loss"],
+            "train_loss_history": train_losses,
+            "val_loss_history": val_losses,
+            "scores": scores,
+        }
+
         models["folds"].append(fold_name)
-    
+        models["scores"].append(val["score"])
+        del model, optimizer
+        torch.cuda.empty_cache()
+
+    logger.info(f"Average CV score: {np.mean(models['scores'])}")
+    models["cv_score"] = np.mean(models["scores"])
+
     torch.save(models, model_save_path)
-    logger.info(f" model saved to: {model_save_path}")
 
 
 def main():

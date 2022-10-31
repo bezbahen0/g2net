@@ -13,6 +13,7 @@ rule test_model:
     shell:
         """
         python3 -m src.inference --data_path {input[0]} \
+            --model_name tf_efficientnet_b5_ns \
             --data_csv_path {input[1]} \
             --models_path {input[2]} \
             --submission_path {output} \
@@ -31,7 +32,9 @@ rule train_model:
         python -m src.train --data_path {input[0]} \
             --data_csv_path {input[1]} \
             --model_save_path {output} \
-            --batch_size 24
+            --batch_size 24 \
+            --epochs 4 \
+            --model_type tf_efficientnet_b5_ns
         """
 
 
