@@ -1,15 +1,15 @@
 rule all:
     input:
-        "data/submission/submission.csv",
+        "data/submission/baseline_submit.csv",
 
 
-rule test_model:
+rule test_baseline_model:
     input:
         "data/processed/test",
         "data/processed/test_labels.csv",
-        "data/trained_models/model.pt",
+        "data/trained_models/baseline.pt",
     output:
-        "data/submission/submission.csv",
+        "data/submission/baseline_submit.csv",
     shell:
         """
         python3 -m src.inference --data_path {input[0]} \
@@ -17,23 +17,23 @@ rule test_model:
             --data_csv_path {input[1]} \
             --models_path {input[2]} \
             --submission_path {output} \
-            --batch_size=24
+            --batch_size 32 
         """
 
 
-rule train_model:
+rule train_baseline_model:
     input:
         "data/processed/train",
         "data/processed/train_labels.csv",
     output:
-        "data/trained_models/model.pt",
+        "data/trained_models/baseline.pt",
     shell:
         """
         python -m src.train --data_path {input[0]} \
             --data_csv_path {input[1]} \
             --model_save_path {output} \
             --batch_size 24 \
-            --epochs 4 \
+            --epochs 16 \
             --model_type tf_efficientnet_b5_ns
         """
 

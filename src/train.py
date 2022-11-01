@@ -7,6 +7,8 @@ import argparse
 import numpy as np
 import pandas as pd
 
+from datetime import datetime
+
 from tqdm import tqdm
 from timm.scheduler import CosineLRScheduler
 from sklearn.metrics import roc_auc_score
@@ -78,7 +80,6 @@ def train(
     data_path,
     data_csv_path,
     model_name,
-    model_save_path,
     nfold,
     epochs,
     batch_size,
@@ -210,6 +211,8 @@ def train(
             "model": model.state_dict(),
             "score": val["score"],
             "loss": val["loss"],
+            "oof_predictions": val["y_pred"],
+            "off_targets": val["y"],
             "train_loss_history": train_losses,
             "val_loss_history": val_losses,
             "scores": scores,
@@ -223,7 +226,13 @@ def train(
     logger.info(f"Average CV score: {np.mean(models['scores'])}")
     models["cv_score"] = np.mean(models["scores"])
 
-    torch.save(models, model_save_path)
+    return models
+
+def add_training_meta(model, args):
+    config = vars(args)
+    model['config'] = config
+    model['write_time'] = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+    return model
 
 
 def main():
@@ -250,11 +259,10 @@ def main():
     logger.info("--TRAIN MODEL--")
     logger.info(f"config arguments: {args}")
 
-    train(
+    model = train(
         args.data_path,
         args.data_csv_path,
         args.model_type,
-        args.model_save_path,
         args.nfold,
         args.epochs,
         args.batch_size,
@@ -267,6 +275,8 @@ def main():
         args.device,
         logger,
     )
+    model = add_training_meta(model, args)
+    torch.save(model, args.model_save_path)
 
     logger.info(f"Save trained {args.model_type} model to {args.model_save_path}")
 

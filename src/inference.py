@@ -42,6 +42,7 @@ def predict(
         preds.append(test["y_pred"])
 
     submit["target"] = np.mean(preds, axis=0)
+    
     submit.to_csv(submission_path, index=False)
 
 
