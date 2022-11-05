@@ -15,6 +15,11 @@ def visualize(model_path, logger):
         fold_data = model[fold]
         epochs = model['epochs']
 
+        logger.info(f"fold name: {fold}")
+        logger.info(f"train loss: {fold_data['train_loss_history']}")
+        logger.info(f"val loss: {fold_data['val_loss_history']}")
+        logger.info(f"scores: {fold_data['scores']}")
+
         ax1.plot(range(epochs), fold_data['train_loss_history'], label=f'fold-{i}')
         
         ax2.plot(range(epochs), fold_data['val_loss_history'], label=f'fold-{i}')

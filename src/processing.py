@@ -12,11 +12,11 @@ from multiprocessing import Pool
 
 
 def processing_chunk(args):
-    chunk_data, chunk_id, data_path, output_path = args
+    chunk_data, chunk_id, data_path, output_path, mode = args
 
     pbar = tqdm(
         chunk_data.iterrows(),
-        desc=f"Processing {chunk_id} chunk",
+        desc=f"Processing {chunk_id} chunk in {mode} mode",
         total=len(chunk_data),
         position=chunk_id,
         leave=False,
@@ -40,7 +40,7 @@ def processing_chunk(args):
 
 
 def processing_pool(
-    data_path, data_csv_path, output_path, output_csv, n_workers, logger
+    data_path, data_csv_path, mode, output_path, output_csv, n_workers, logger
 ):
     df = pd.read_csv(data_csv_path)
     df = df[df.target >= 0]
@@ -49,12 +49,13 @@ def processing_pool(
 
     args = []
     for chunk_id, chunk_data in enumerate(np.array_split(df, n_workers)):
-        function_args = [chunk_data, chunk_id, data_path, output_path]
+        function_args = [chunk_data, chunk_id, data_path, output_path, mode]
         args.append(function_args)
 
     pool = Pool(processes=n_workers)
     block = pool.map(processing_chunk, args)
 
+    df['id'] = df['id'].apply(lambda id: f'{mode}/{id}')
     df.to_csv(output_csv)
 
 
@@ -66,6 +67,7 @@ def main():
     parser.add_argument("--data_csv", type=str)
     parser.add_argument("--output", type=str)
     parser.add_argument("--output_csv", type=str)
+    parser.add_argument("--mode", type=str)
     parser.add_argument("--n_workers", type=int)
 
     args = parser.parse_args()
@@ -77,6 +79,7 @@ def main():
     processing_pool(
         args.data,
         args.data_csv,
+        args.mode,
         args.output,
         args.output_csv,
         args.n_workers,
