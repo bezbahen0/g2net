@@ -30,9 +30,10 @@ def processing_chunk(args):
         with h5py.File(filename, "r") as f:
             g = f[file_id]
             for ch, s in enumerate(["H1", "L1"]):
-                a = g[s]["SFTs"][:, :4096] * 1e22  # Fourier coefficient complex64
+                a = g[s]["SFTs"][:360, :4096] * 1e22  # Fourier coefficient complex64
                 p = a.real**2 + a.imag**2  # power
                 p /= np.mean(p)  # normalize
+                print(p.shape)
                 p = np.mean(p.reshape(360, 128, 32), axis=2)  # compress 4096 -> 128
                 img[ch] = p
 

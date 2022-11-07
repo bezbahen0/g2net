@@ -1,53 +1,23 @@
 rule all:
     input:
-        "data/submission/baseline_with_noise_gen_submit_effi6.csv",
+        "data/submission/baseline_with_noise_500_signal_500.csv",
 
 
 rule test_baseline_model:
     input:
         "data/processed/test",
         "data/raw/g2net-detecting-continuous-gravitational-waves/sample_submission.csv",
-        "data/trained_models/baseline_noise_effi6.pt",
+        "data/trained_models/baseline_noise_500_signal_500.pt",
     output:
-        "data/submission/baseline_with_noise_gen_submit_effi6.csv",
+        "data/submission/baseline_with_noise_500_signal_500.csv",
     shell:
         """
         python3 -m src.inference --data_path {input[0]} \
-            --model_name tf_efficientnet_b6_ns \
+            --model_name tf_efficientnet_b5_ns \
             --data_csv_path {input[1]} \
             --models_path {input[2]} \
             --submission_path {output} \
             --batch_size 64 
-        """
-
-
-rule train_baseline_model:
-    input:
-        "data/processed/",
-        "data/processed/all_data_labels.csv",
-    output:
-        "data/trained_models/baseline_noise_effi6.pt",
-    shell:
-        """
-        python -m src.train --data_path {input[0]}\
-            --data_csv_path {input[1]} \
-            --model_save_path {output} \
-            --batch_size 18 \
-            --epochs 8 \
-            --model_type tf_efficientnet_b6_ns
-        """
-
-
-rule merge_train_data:
-    input:
-        "data/processed/train_labels.csv",
-        "data/processed/generated_noise.csv",
-    output:
-        "data/processed/all_data_labels.csv",
-    shell:
-        """
-        python -m src.merge_data --data {input[0]} {input[1]} \
-            --output {output[0]} \
         """
 
 
@@ -66,6 +36,37 @@ rule processing_test_data:
             --output_csv {output[1]} \
             --n_workers 1 \
             --mode test
+        """
+
+
+rule train_baseline_model:
+    input:
+        "data/processed/",
+        "data/processed/all_data_labels.csv",
+    output:
+        "data/trained_models/baseline_noise_500_signal_500.pt",
+    shell:
+        """
+        python -m src.train --data_path {input[0]}\
+            --data_csv_path {input[1]} \
+            --model_save_path {output} \
+            --batch_size 24 \
+            --epochs 16 \
+            --model_type tf_efficientnet_b5_ns
+        """
+
+
+rule merge_train_data:
+    input:
+        "data/processed/train_labels.csv",
+        "data/processed/generated_noise.csv",
+        "data/processed/generated_signal.csv",
+    output:
+        "data/processed/all_data_labels.csv",
+    shell:
+        """
+        python -m src.merge_data --data {input[0]} {input[1]} \
+            --output {output[0]} \
         """
 
 
@@ -102,6 +103,37 @@ rule processing_generated_noise_data:
             --output_csv {output[1]} \
             --n_workers 1 \
             --mode generated_noise
+        """
+
+
+rule processing_generated_signal_data:
+    input:
+        "data/generated/signal",
+        "data/generated/signal.csv",
+    output:
+        directory("data/processed/generated_signal"),
+        "data/processed/generated_signal.csv",
+    shell:
+        """
+        python -m src.processing --data {input[0]} \
+            --data_csv {input[1]} \
+            --output {output[0]} \
+            --output_csv {output[1]} \
+            --n_workers 1 \
+            --mode generated_signal
+        """
+
+
+rule generate_signal_data:
+    output:
+        directory("data/generated/signal"),
+        "data/generated/signal.csv",
+    shell:
+        """
+        python3 -m src.data_generation --output {output[0]} \
+        --output_csv {output[1]} \
+        --num_signals 500 \
+        --data_type signal > /dev/null 2>&1 
         """
 
 
