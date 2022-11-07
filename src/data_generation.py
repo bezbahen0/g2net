@@ -16,32 +16,65 @@ from scipy import stats
 import pyfstat
 from pyfstat.utils import get_sft_as_arrays
 
-# logger = pyfstat.set_up_logger(log_level="INFO", outdir="/tmp/gen_log", append=False, streams=(open(os.devnull, 'w'),))
+from .processing import processing_array
 
 
-# source - https://www.kaggle.com/code/horikitasaku/g2net-pyfstat-generate-pure-gaussian/notebook
-def noise_generation(output_path, output_csv_path, num_signals):
-    id_ = [
-        f"PG{i}" for i in range(num_signals)
-    ]  # Create a label.csv   PG is id's name. the num in range is the id
+def fill_labels(output_path, output_csv_path, data_type, label_template, num_signals, target):
+    id_ = [f"{data_type}/{label_template % i}" for i in range(num_signals)]
 
     label_pure = pd.DataFrame(data=id_, columns=["id"])
-    label_pure["target"] = 0
+    label_pure["target"] = target
 
     Path(output_path).mkdir(parents=True, exist_ok=True)
     label_pure.to_csv(f"{output_csv_path}", index=False)
 
+
+def save_hdf5(output_path, label, frequency, timestamps, fourier_data):
+    f = h5py.File(f"{output_path}/{label}.hdf5", "w")
+    g0 = f.create_group(f"PG{i}")
+    g1 = g0.create_group("H1")
+    g2 = g0.create_group("L1")
+    dset = g0.create_dataset("frequency_Hz", data=frequency)
+    g1.create_dataset("SFTs", data=fourier_data["H1"])
+    g1.create_dataset("timestamps_GPS", data=timestamps["H1"])
+    g2.create_dataset("SFTs", data=fourier_data["L1"])
+    g2.create_dataset("timestamps_GPS", data=timestamps["L1"])
+    f.close()
+
+
+def save_data(writer, output_path, label, processing_function):
+    frequency, timestamps, fourier_data = get_sft_as_arrays(writer.sftfilepath)
+
+    if processing_function is None:
+        save_hdf5(output_path, label, frequency, timestamps, fourier_data)
+    else:
+        processing_function(output_path, label, frequency, timestamps, fourier_data)
+
+    for path in writer.sftfilepath.split(";"):
+        os.remove(path)
+    gc.collect()
+
+
+# source - https://www.kaggle.com/code/horikitasaku/g2net-pyfstat-generate-pure-gaussian/notebook
+def noise_generation(
+    output_path, output_csv_path, data_type, num_signals, processing_function=None
+):
+    label_template = "noise_%i"
+
+    fill_labels(output_path, output_csv_path, data_type, label_template, num_signals, 0)
+
     for i in tqdm(range(num_signals), leave=False, desc="Noise generation"):
+        label = label_template % i
         # Setup Writer
         duration = 10357578 * np.random.uniform(1.5, 1.6)
         F0 = np.random.uniform(51, 497)
         sqrtSX = np.random.uniform(3e-24, 5e-24)
         tstart = 1238170021
-        band = 1/5.01
+        band = 1 / 5.01
         phi = np.random.uniform(1, -1) * np.pi
 
         noise_kwargs = {
-            "label": "gaussian_noise_h1_l1_detectors",
+            "label": label,
             "tstart": tstart,  # Starting time of the observation [GPS time]
             "duration": duration,  # Duration [seconds]
             "detectors": "H1,L1",  # Detector to simulate, in this case LIGO Hanford
@@ -55,41 +88,18 @@ def noise_generation(output_path, output_csv_path, num_signals):
             "outdir": "/tmp/noise",
         }
 
-        noise_writer = pyfstat.Writer(**noise_kwargs)
-        noise_writer.make_data(verbose=False)
+        writer = pyfstat.Writer(**noise_kwargs)
+        writer.make_data(verbose=False)
 
-        frequency, timestamps, fourier_data = get_sft_as_arrays(
-            noise_writer.sftfilepath
-        )
+        save_data(writer, output_path, label, processing_function)
 
-        f = h5py.File(f"{output_path}/PG{i}.hdf5", "w")
-        g0 = f.create_group(f"PG{i}")
-        g1 = g0.create_group("H1")
-        g2 = g0.create_group("L1")
-        dset = g0.create_dataset("frequency_Hz", data=frequency)
 
-        g1.create_dataset("SFTs", data=fourier_data["H1"])
-        g1.create_dataset("timestamps_GPS", data=timestamps["H1"])
+def signal_generation(
+    output_path, output_csv_path, data_type, num_signals, processing_function=None
+):
+    label_template = "signal_%i"
 
-        g2.create_dataset("SFTs", data=fourier_data["L1"])
-        g2.create_dataset("timestamps_GPS", data=timestamps["L1"])
-
-        f.close()
-
-        for path in noise_writer.sftfilepath.split(";"):
-            os.remove(path)
-        gc.collect()
-
-def signal_generation(output_path, output_csv_path, num_signals):
-    id_ = [
-        f"Signal_{i}" for i in range(num_signals)
-    ]  # Create a label.csv   PG is id's name. the num in range is the id
-
-    label_pure = pd.DataFrame(data=id_, columns=["id"])
-    label_pure["target"] = 1
-
-    Path(output_path).mkdir(parents=True, exist_ok=True)
-    label_pure.to_csv(f"{output_csv_path}", index=False)
+    fill_labels(output_path, output_csv_path, data_type, label_template, num_signals, 1)
 
     writer_kwargs = {
         "label": f"signal",
@@ -102,7 +112,6 @@ def signal_generation(output_path, output_csv_path, num_signals):
         "SFTWindowBeta": 0.01,
         "Band": 0.2,
         "outdir": "/tmp/signal",
-    
     }
 
     signal_parameters_generator = pyfstat.AllSkyInjectionParametersGenerator(
@@ -116,53 +125,15 @@ def signal_generation(output_path, output_csv_path, num_signals):
         },
     )
 
-   # snrs = np.zeros(num_signals)
-
     for i in tqdm(range(num_signals), leave=False, desc="Signal generation"):
-
+        label = label_template % i
         # Draw signal parameters.
         # Noise can be drawn by setting `params["h0"] = 0
         params = signal_parameters_generator.draw()
         writer = pyfstat.Writer(**writer_kwargs, **params)
         writer.make_data(verbose=False)
 
-        # SNR can be compute from a set of SFTs for a specific set
-        # of parameters as follows:
-        #snr = pyfstat.SignalToNoiseRatio.from_sfts(
-        #    F0=writer.F0, sftfilepath=writer.sftfilepath
-        #)
-        #squared_snr = snr.compute_snr2(
-        #    Alpha=writer.Alpha,
-        #    Delta=writer.Delta,
-        #    psi=writer.psi,
-        #    phi=writer.phi,
-        #    h0=writer.h0,
-        #    cosi=writer.cosi,
-        #)
-        #snrs[i] = np.sqrt(squared_snr)
-
-        # Data can be read as a numpy array using PyFstat
-        frequency, timestamps, fourier_data = get_sft_as_arrays(
-            writer.sftfilepath
-        )
-
-        f = h5py.File(f"{output_path}/Signal_{i}.hdf5", "w")
-        g0 = f.create_group(f"Signal_{i}")
-        g1 = g0.create_group("H1")
-        g2 = g0.create_group("L1")
-        dset = g0.create_dataset("frequency_Hz", data=frequency)
-
-        g1.create_dataset("SFTs", data=fourier_data["H1"])
-        g1.create_dataset("timestamps_GPS", data=timestamps["H1"])
-
-        g2.create_dataset("SFTs", data=fourier_data["L1"])
-        g2.create_dataset("timestamps_GPS", data=timestamps["L1"])
-
-        f.close()
-
-        for path in writer.sftfilepath.split(";"):
-            os.remove(path)
-        gc.collect()
+        save_data(writer, output_path, label, processing_function)
 
 
 def signal_with_noise_generation():
@@ -177,6 +148,7 @@ def main():
     parser.add_argument("--output_csv", type=str)
     parser.add_argument("--data_type", type=str)
     parser.add_argument("--num_signals", type=int)
+    parser.add_argument("--processing", type=str, default=None)
 
     args = parser.parse_args()
 
@@ -184,11 +156,19 @@ def main():
     logger.info("--DATA GENERATION--")
     logger.info(f"config arguments: {args}")
 
-    if args.data_type == "noise":
-        noise_generation(args.output, args.output_csv, args.num_signals)
+    processing = None
+    if args.processing == "baseline":
+        processing = processing_array
 
-    if args.data_type == "signal":
-        signal_generation(args.output, args.output_csv, args.num_signals)
+    if args.data_type == "generated_noise":
+        noise_generation(
+            args.output, args.output_csv, args.data_type, args.num_signals, processing
+        )
+
+    if args.data_type == "generated_signal":
+        signal_generation(
+            args.output, args.output_csv, args.data_type, args.num_signals, processing
+        )
 
     if args.data_type == "noise_signal":
         pass

@@ -88,63 +88,30 @@ rule processing_train_data:
         """
 
 
-rule processing_generated_noise_data:
-    input:
-        "data/generated/noise",
-        "data/generated/noise.csv",
-    output:
-        directory("data/processed/generated_noise"),
-        "data/processed/generated_noise.csv",
-    shell:
-        """
-        python -m src.processing --data {input[0]} \
-            --data_csv {input[1]} \
-            --output {output[0]} \
-            --output_csv {output[1]} \
-            --n_workers 1 \
-            --mode generated_noise
-        """
-
-
-rule processing_generated_signal_data:
-    input:
-        "data/generated/signal",
-        "data/generated/signal.csv",
+rule generate_processed_signal_data:
     output:
         directory("data/processed/generated_signal"),
         "data/processed/generated_signal.csv",
     shell:
         """
-        python -m src.processing --data {input[0]} \
-            --data_csv {input[1]} \
-            --output {output[0]} \
-            --output_csv {output[1]} \
-            --n_workers 1 \
-            --mode generated_signal
+        python3 -m src.data_generation --output {output[0]} \
+        --output_csv {output[1]} \
+        --num_signals 10 \
+        --processing baseline \
+        --data_type generated_signal
         """
+        # > /dev/null 2>&1 
 
 
-rule generate_signal_data:
+rule generate_processed_noise_data:
     output:
-        directory("data/generated/signal"),
-        "data/generated/signal.csv",
+        directory("data/processed/generated_noise"),
+        "data/processed/generated_noise.csv",
     shell:
         """
         python3 -m src.data_generation --output {output[0]} \
         --output_csv {output[1]} \
-        --num_signals 500 \
-        --data_type signal > /dev/null 2>&1 
-        """
-
-
-rule generate_noise_data:
-    output:
-        directory("data/generated/noise"),
-        "data/generated/noise.csv",
-    shell:
-        """
-        python3 -m src.data_generation --output {output[0]} \
-        --output_csv {output[1]} \
-        --num_signals 500 \
-        --data_type noise  > /dev/null 2>&1
+        --num_signals 10 \
+        --processing baseline \
+        --data_type generated_noise
         """

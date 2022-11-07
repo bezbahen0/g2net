@@ -10,6 +10,17 @@ from pathlib import Path
 
 from multiprocessing import Pool
 
+def processing_array(output_path, filename, frequency, timestamps, fourier_data):
+    img = np.empty((2, 360, 128), dtype=np.float32)
+
+    for ch, s in enumerate(["H1", "L1"]):
+        a = fourier_data[s][:360, :4096] * 1e22  # Fourier coefficient complex64
+        p = a.real**2 + a.imag**2  # power
+        p /= np.mean(p)  # normalize
+        p = np.mean(p.reshape(360, 128, 32), axis=2)  # compress 4096 -> 128
+        img[ch] = p
+
+        np.save(os.path.join(output_path, f"{filename}.npy"), img)
 
 def processing_chunk(args):
     chunk_data, chunk_id, data_path, output_path, mode = args
@@ -33,7 +44,6 @@ def processing_chunk(args):
                 a = g[s]["SFTs"][:360, :4096] * 1e22  # Fourier coefficient complex64
                 p = a.real**2 + a.imag**2  # power
                 p /= np.mean(p)  # normalize
-                print(p.shape)
                 p = np.mean(p.reshape(360, 128, 32), axis=2)  # compress 4096 -> 128
                 img[ch] = p
 
