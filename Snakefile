@@ -98,7 +98,7 @@ rule generate_processed_signal_data:
         --output_csv {output[1]} \
         --num_signals 500 \
         --processing baseline \
-        --data_type generated_signal > /dev/null 2>&1 
+        --data_type generated_signal  > /dev/null 2>&1 
         """
         # > /dev/null 2>&1 
 

@@ -24,12 +24,12 @@ default_noise_kwargs = {
     "duration": 4 * 30 * 86400,
     "Tsft": 1800,
     #"Band": 1/5.01,
-    "Band": 0.5,
+    "Band": 0.2,
     "SFTWindowType": "tukey",
     "SFTWindowBeta": 0.001,
     "sqrtSX": 1e-23,
     "detectors": "H1,L1",
-    "F0": 100.0,  # np.random.uniform(51, 497)
+    #"F0": 100.0,  #np.random.uniform(51, 497)
 }
 
 
@@ -85,6 +85,7 @@ def noise_sft_generation(label, tmp_dir):
     noise_kwargs["label"] = label
     noise_kwargs["duration"] = 10357578 * np.random.uniform(1.5, 1.6)
     noise_kwargs["sqrtSX"] = np.random.uniform(3e-24, 5e-24)
+    noise_kwargs["F0"] = np.random.uniform(51, 497)
     noise_kwargs["outdir"] = tmp_dir
 
     writer = pyfstat.Writer(**noise_kwargs)
@@ -127,12 +128,13 @@ def signal_generation(
         noise_writer, noise_kwargs = noise_sft_generation(label, "/tmp/signal")
 
         priors = {
-            "F0": {
-                "uniform": {
-                    "low": noise_kwargs["F0"] - noise_kwargs["Band"] / 2.0,
-                    "high": noise_kwargs["F0"] + noise_kwargs["Band"] / 2.0,
-                }
-            },
+            "F0": noise_kwargs["F0"],
+            #"F0": {
+            #    "uniform": {
+            #        "low": noise_kwargs["F0"] - noise_kwargs["Band"] / 2.0,
+            #        "high": noise_kwargs["F0"] + noise_kwargs["Band"] / 2.0,
+            #    }
+            #},
             "F1": -1e-10,
             "F2": 0,
             "h0": noise_kwargs["sqrtSX"] / 10,  # Fix amplitude at depth 10.
