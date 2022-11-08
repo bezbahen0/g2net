@@ -1,15 +1,15 @@
 rule all:
     input:
-        "data/submission/baseline_with_noise_500_signal_500.csv",
+        "data/submission/baseline_with_noise_500_noisedsignal_500.csv",
 
 
 rule test_baseline_model:
     input:
         "data/processed/test",
         "data/raw/g2net-detecting-continuous-gravitational-waves/sample_submission.csv",
-        "data/trained_models/baseline_noise_500_signal_500.pt",
+        "data/trained_models/baseline_with_noise_500_noisedsignal_500.pt",
     output:
-        "data/submission/baseline_with_noise_500_signal_500.csv",
+        "data/submission/baseline_with_noise_500_noisedsignal_500.csv",
     shell:
         """
         python3 -m src.inference --data_path {input[0]} \
@@ -44,7 +44,7 @@ rule train_baseline_model:
         "data/processed/",
         "data/processed/all_data_labels.csv",
     output:
-        "data/trained_models/baseline_noise_500_signal_500.pt",
+        "data/trained_models/baseline_with_noise_500_noisedsignal_500.pt",
     shell:
         """
         python -m src.train --data_path {input[0]}\
@@ -96,9 +96,9 @@ rule generate_processed_signal_data:
         """
         python3 -m src.data_generation --output {output[0]} \
         --output_csv {output[1]} \
-        --num_signals 10 \
+        --num_signals 500 \
         --processing baseline \
-        --data_type generated_signal
+        --data_type generated_signal > /dev/null 2>&1 
         """
         # > /dev/null 2>&1 
 
@@ -111,7 +111,7 @@ rule generate_processed_noise_data:
         """
         python3 -m src.data_generation --output {output[0]} \
         --output_csv {output[1]} \
-        --num_signals 10 \
+        --num_signals 500 \
         --processing baseline \
-        --data_type generated_noise
+        --data_type generated_noise > /dev/null 2>&1 
         """
