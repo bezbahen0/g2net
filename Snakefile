@@ -1,15 +1,15 @@
 rule all:
     input:
-        "data/submission/baseline_with_noise_500_noisedsignal_500.csv",
+        "data/submission/baseline_with_noise_500_noisedsignal_500_random_F0.csv",
 
 
 rule test_baseline_model:
     input:
         "data/processed/test",
         "data/raw/g2net-detecting-continuous-gravitational-waves/sample_submission.csv",
-        "data/trained_models/baseline_with_noise_500_noisedsignal_500.pt",
+        "data/trained_models/baseline_with_noise_500_noisedsignal_500_random_F0.pt",
     output:
-        "data/submission/baseline_with_noise_500_noisedsignal_500.csv",
+        "data/submission/baseline_with_noise_500_noisedsignal_500_random_F0.csv",
     shell:
         """
         python3 -m src.inference --data_path {input[0]} \
@@ -44,7 +44,7 @@ rule train_baseline_model:
         "data/processed/",
         "data/processed/all_data_labels.csv",
     output:
-        "data/trained_models/baseline_with_noise_500_noisedsignal_500.pt",
+        "data/trained_models/baseline_with_noise_500_noisedsignal_500_random_F0.pt",
     shell:
         """
         python -m src.train --data_path {input[0]}\
