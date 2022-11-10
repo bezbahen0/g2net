@@ -1,15 +1,20 @@
+sumbit_description = (
+    "baseline_with_noise_500_noisedsignal_500_random_F0_fixed_random_state_1"
+)
+
+
 rule all:
     input:
-        "data/submission/baseline_with_noise_500_noisedsignal_500_random_F0.csv",
+        f"data/submission/{sumbit_description}.csv",
 
 
 rule test_baseline_model:
     input:
         "data/processed/test",
         "data/raw/g2net-detecting-continuous-gravitational-waves/sample_submission.csv",
-        "data/trained_models/baseline_with_noise_500_noisedsignal_500_random_F0.pt",
+        f"data/trained_models/{sumbit_description}.pt",
     output:
-        "data/submission/baseline_with_noise_500_noisedsignal_500_random_F0.csv",
+        f"data/submission/{sumbit_description}.csv",
     shell:
         """
         python3 -m src.inference --data_path {input[0]} \
@@ -44,7 +49,7 @@ rule train_baseline_model:
         "data/processed/",
         "data/processed/all_data_labels.csv",
     output:
-        "data/trained_models/baseline_with_noise_500_noisedsignal_500_random_F0.pt",
+        f"data/trained_models/{sumbit_description}.pt",
     shell:
         """
         python -m src.train --data_path {input[0]}\

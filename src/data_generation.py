@@ -5,13 +5,15 @@ import logging
 import argparse
 
 import h5py
+import random
 
 import pandas as pd
 import numpy as np
 
 from tqdm import tqdm
 from pathlib import Path
-from scipy import stats
+
+# from scipy import stats
 
 import pyfstat
 from pyfstat.utils import get_sft_as_arrays
@@ -23,14 +25,20 @@ default_noise_kwargs = {
     "tstart": 1238170021,
     "duration": 4 * 30 * 86400,
     "Tsft": 1800,
-    #"Band": 1/5.01,
+    # "Band": 1/5.01,
     "Band": 0.2,
     "SFTWindowType": "tukey",
     "SFTWindowBeta": 0.001,
     "sqrtSX": 1e-23,
     "detectors": "H1,L1",
-    #"F0": 100.0,  #np.random.uniform(51, 497)
+    # "F0": 100.0,  #np.random.uniform(51, 497)
 }
+
+
+def set_random_seed(seed):
+    random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    np.random.seed(seed)
 
 
 def fill_labels(
@@ -83,7 +91,7 @@ def apply_random_augmentation():
 def noise_sft_generation(label, tmp_dir):
     noise_kwargs = default_noise_kwargs.copy()
     noise_kwargs["label"] = label
-    noise_kwargs["duration"] = 10357578 * np.random.uniform(1.5, 1.6)
+    noise_kwargs["duration"] = noise_kwargs["duration"] * np.random.uniform(0.7, 1.0)
     noise_kwargs["sqrtSX"] = np.random.uniform(3e-24, 5e-24)
     noise_kwargs["F0"] = np.random.uniform(51, 497)
     noise_kwargs["outdir"] = tmp_dir
@@ -99,7 +107,6 @@ def noise_generation(
     data_type,
     num_signals,
     processing_function=None,
-    augmentation_functions=None,
 ):
     label_template = "noise_%i"
 
@@ -129,12 +136,12 @@ def signal_generation(
 
         priors = {
             "F0": noise_kwargs["F0"],
-            #"F0": {
+            # "F0": {
             #    "uniform": {
             #        "low": noise_kwargs["F0"] - noise_kwargs["Band"] / 2.0,
             #        "high": noise_kwargs["F0"] + noise_kwargs["Band"] / 2.0,
             #    }
-            #},
+            # },
             "F1": -1e-10,
             "F2": 0,
             "h0": noise_kwargs["sqrtSX"] / 10,  # Fix amplitude at depth 10.
@@ -159,10 +166,6 @@ def signal_generation(
         save_data(writer.sftfilepath, output_path, label, processing_function)
 
 
-def signal_with_noise_generation():
-    pass
-
-
 def main():
     """Runs data generation scripts"""
 
@@ -172,6 +175,7 @@ def main():
     parser.add_argument("--data_type", type=str)
     parser.add_argument("--num_signals", type=int)
     parser.add_argument("--processing", type=str, default=None)
+    parser.add_argument("--random_seed", type=int, default=42)
 
     args = parser.parse_args()
 
@@ -196,9 +200,6 @@ def main():
             args.num_signals,
             processing,
         )
-
-    if args.data_type == "noise_signal":
-        pass
 
 
 if __name__ == "__main__":

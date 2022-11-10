@@ -1,14 +1,14 @@
 import os
 import time
-import torch
 import logging
 import argparse
+import random
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
 
-from datetime import datetime
-
+import torch
 from tqdm import tqdm
 from timm.scheduler import CosineLRScheduler
 from sklearn.metrics import roc_auc_score
@@ -17,6 +17,14 @@ from sklearn.model_selection import StratifiedKFold
 from .dataset import Dataset
 from .models.model import Model
 
+def set_seed(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    np.random.seed(seed)
 
 def evaluate(model, loader_val, device, *, compute_score=True, verbose=False):
     """
@@ -89,6 +97,11 @@ def train(
     lr_max,
     epochs_warmup,
     random_state,
+    augmentaion_train,
+    flip_rate,
+    freq_shift_rate,
+    time_mask_num,
+    freq_mask_num,    
     device,
     logger,
 ):
@@ -100,10 +113,10 @@ def train(
     models = {"kfold": nfold, "folds": [], "epochs": epochs, "scores": []}
     for ifold, (idx_train, idx_test) in enumerate(kfold.split(dataset, df["target"])):
         logger.info("Fold %d/%d" % (ifold, nfold))
-        torch.manual_seed(42 + ifold + 1)
+        torch.manual_seed(random_state + ifold + 1)
 
         # Train - val split
-        dataset_train = Dataset(data_path, df.iloc[idx_train])
+        dataset_train = Dataset(data_path, df.iloc[idx_train], augmentaion_train, flip_rate, freq_shift_rate,time_mask_num,freq_mask_num)
         dataset_val = Dataset(data_path, df.iloc[idx_test])
 
         loader_train = torch.utils.data.DataLoader(
@@ -253,12 +266,20 @@ def main():
     parser.add_argument("--epochs_warmup", type=float, default=1.0)
     parser.add_argument("--random_state", type=float, default=42)
 
+    parser.add_argument("--augmentaion_train", type=bool, default=False)
+    parser.add_argument("--flip_rate", type=float, default=0.5)   
+    parser.add_argument("--freq_shift_rate", type=float, default=1.0)   
+    parser.add_argument("--time_mask_num", type=int, default=1)   
+    parser.add_argument("--freq_mask_num", type=int, default=2)   
+
     args = parser.parse_args()
 
     logger = logging.getLogger(__name__)
     logger.info("--TRAIN MODEL--")
     logger.info(f"config arguments: {args}")
 
+    set_torch_seed(args.random_state)
+    
     model = train(
         args.data_path,
         args.data_csv_path,
@@ -272,6 +293,11 @@ def main():
         args.lr_max,
         args.epochs_warmup,
         args.random_state,
+        args.augmentaion_train,
+        args.flip_rate,
+        args.freq_shift_rate,
+        args.time_mask_num,
+        args.freq_mask_num,
         args.device,
         logger,
     )
