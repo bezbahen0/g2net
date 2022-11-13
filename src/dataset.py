@@ -51,9 +51,11 @@ class Dataset(torch.utils.data.Dataset):
             img = np.flip(img, axis=1).copy()
             img = np.flip(img, axis=2).copy()
             img = np.roll(img, np.random.randint(low=0, high=img.shape[1]), axis=1).copy()
-
+            
+            img = torch.from_numpy(img)
             for _ in range(np.random.randint(low=0, high=self.time_mask_num)): 
                 img = self.transforms_time_mask(img)
+
             for _ in range(np.random.randint(low=0, high=self.freq_mask_num)):
                 img = self.transforms_freq_mask(img)
 

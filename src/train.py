@@ -102,6 +102,8 @@ def train(
     freq_shift_rate,
     time_mask_num,
     freq_mask_num,    
+    save_best_model,
+    pretrained,
     device,
     logger,
 ):
@@ -132,7 +134,7 @@ def train(
         )
 
         # Model and optimizer
-        model = Model(model_name, pretrained=True)
+        model = Model(model_name, pretrained=pretrained)
         model.to(device)
         model.train()
 
@@ -165,6 +167,7 @@ def train(
         
         tb = time.time()
         logger.info("Epoch   loss          score   lr")
+        all_models = {}
         for iepoch in range(epochs):
             loss_sum = 0.0
             n_sum = 0
@@ -212,6 +215,7 @@ def train(
                 "Epoch %d %.4f %.4f %.4f  %.2e  %.2f sec"
                 % (iepoch + 1, loss_train, val["loss"], val["score"], lr_now, dt)
             )
+            all_models[val["score"]] = model.state_dict()
 
         dt = time.time() - tb
         logger.info("Training done %.2f sec total, %.2f sec val" % (dt, time_val))
@@ -221,7 +225,7 @@ def train(
         val = evaluate(model, loader_val, device)
 
         models[f"model_fold_{ifold}"] = {
-            "model": model.state_dict(),
+            "model": all_models[max(scores)] if save_best_model else model.state_dict(),
             "score": val["score"],
             "loss": val["loss"],
             "oof_predictions": val["y_pred"],
@@ -235,9 +239,9 @@ def train(
         models["scores"].append(val["score"])
         del model, optimizer
         torch.cuda.empty_cache()
-
-    logger.info(f"Average CV score: {np.mean(models['scores'])}")
-    models["cv_score"] = np.mean(models["scores"])
+    mean_score = np.mean(list(all_models.keys()))if save_best_model else np.mean(models['scores'] )
+    logger.info(f"Average CV score: {mean_score}")
+    models["cv_score"] = mean_score
 
     return models
 
@@ -254,6 +258,8 @@ def main():
     parser.add_argument("--data_csv_path", type=str)
     parser.add_argument("--model_save_path", type=str)
     parser.add_argument("--model_type", type=str, default="tf_efficientnet_b5_ns")
+    parser.add_argument("--save_best_model", action='store_true', default=False)
+    parser.add_argument("--pretrained", action='store_true', default=False)
     parser.add_argument("--device", type=str, default="cuda")
 
     parser.add_argument("--nfold", type=int, default=5)
@@ -266,7 +272,7 @@ def main():
     parser.add_argument("--epochs_warmup", type=float, default=1.0)
     parser.add_argument("--random_state", type=float, default=42)
 
-    parser.add_argument("--augmentaion_train", type=bool, default=False)
+    parser.add_argument("--augmentaion_train", action='store_true')
     parser.add_argument("--flip_rate", type=float, default=0.5)   
     parser.add_argument("--freq_shift_rate", type=float, default=1.0)   
     parser.add_argument("--time_mask_num", type=int, default=1)   
@@ -278,7 +284,7 @@ def main():
     logger.info("--TRAIN MODEL--")
     logger.info(f"config arguments: {args}")
 
-    set_torch_seed(args.random_state)
+    set_seed(args.random_state)
     
     model = train(
         args.data_path,
@@ -298,8 +304,10 @@ def main():
         args.freq_shift_rate,
         args.time_mask_num,
         args.freq_mask_num,
-        args.device,
-        logger,
+        save_best_model=args.save_best_model,
+        pretrained=args.pretrained,
+        device=args.device,
+        logger=logger,
     )
     model = add_training_meta(model, args)
     torch.save(model, args.model_save_path)

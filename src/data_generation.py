@@ -91,7 +91,7 @@ def apply_random_augmentation():
 def noise_sft_generation(label, tmp_dir):
     noise_kwargs = default_noise_kwargs.copy()
     noise_kwargs["label"] = label
-    noise_kwargs["duration"] = noise_kwargs["duration"] * np.random.uniform(0.7, 1.0)
+    noise_kwargs["duration"] = noise_kwargs["duration"] * np.random.uniform(0.9, 1.0)
     noise_kwargs["sqrtSX"] = np.random.uniform(3e-24, 5e-24)
     noise_kwargs["F0"] = np.random.uniform(51, 497)
     noise_kwargs["outdir"] = tmp_dir
@@ -162,6 +162,10 @@ def signal_generation(
 
         writer = pyfstat.Writer(**params)
         writer.make_data(verbose=False)
+
+        for path in noise_writer.sftfilepath.split(";"):
+            os.remove(path)
+        gc.collect()
 
         save_data(writer.sftfilepath, output_path, label, processing_function)
 

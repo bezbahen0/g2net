@@ -1,6 +1,4 @@
-sumbit_description = (
-    "baseline_with_noise_500_noisedsignal_500_random_F0_fixed_random_state_1"
-)
+sumbit_description = "baseline_with_noise_10000_noisedsignal_10000_random_F0_fixed_random_state_augmentations_best_model_efficientb7"
 
 
 rule all:
@@ -18,7 +16,7 @@ rule test_baseline_model:
     shell:
         """
         python3 -m src.inference --data_path {input[0]} \
-            --model_name tf_efficientnet_b5_ns \
+            --model_name tf_efficientnet_b7_ns \
             --data_csv_path {input[1]} \
             --models_path {input[2]} \
             --submission_path {output} \
@@ -55,9 +53,12 @@ rule train_baseline_model:
         python -m src.train --data_path {input[0]}\
             --data_csv_path {input[1]} \
             --model_save_path {output} \
-            --batch_size 24 \
-            --epochs 16 \
-            --model_type tf_efficientnet_b5_ns
+            --batch_size 14 \
+            --epochs 8 \
+            --augmentaion_train \
+            --save_best_model \
+            --pretrained \
+            --model_type tf_efficientnet_b7_ns
         """
 
 
@@ -101,7 +102,7 @@ rule generate_processed_signal_data:
         """
         python3 -m src.data_generation --output {output[0]} \
         --output_csv {output[1]} \
-        --num_signals 500 \
+        --num_signals 10000 \
         --processing baseline \
         --data_type generated_signal  > /dev/null 2>&1 
         """
@@ -116,7 +117,7 @@ rule generate_processed_noise_data:
         """
         python3 -m src.data_generation --output {output[0]} \
         --output_csv {output[1]} \
-        --num_signals 500 \
+        --num_signals 10000 \
         --processing baseline \
         --data_type generated_noise > /dev/null 2>&1 
         """
