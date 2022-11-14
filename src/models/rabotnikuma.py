@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import timm
 
-from modules import *
+from .modules import *
 
 from torch.nn.parameter import Parameter
 
