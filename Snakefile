@@ -1,4 +1,4 @@
-sumbit_description = "baseline_with_noise_10000_noisedsignal_10000_random_F0_fixed_random_state_augmentations_best_model_efficientb7"
+sumbit_description = "baseline_with_noise_10000_noisedsignal_10000_random_F0_fixed_random_state_augmentations_1_fold_best_model"
 
 
 rule all:
@@ -16,7 +16,8 @@ rule test_baseline_model:
     shell:
         """
         python3 -m src.inference --data_path {input[0]} \
-            --model_name tf_efficientnet_b7_ns \
+            --model_name tf_efficientnet_b5_ns \
+            --use_nfolds 5 \
             --data_csv_path {input[1]} \
             --models_path {input[2]} \
             --submission_path {output} \
@@ -53,13 +54,14 @@ rule train_baseline_model:
         python -m src.train --data_path {input[0]}\
             --data_csv_path {input[1]} \
             --model_save_path {output} \
-            --batch_size 14 \
-            --epochs 8 \
+            --batch_size 24 \
+            --epochs 5 \
             --augmentaion_train \
-            --save_best_model \
             --pretrained \
-            --model_type tf_efficientnet_b7_ns
+            --save_best_model \
+            --model_type tf_efficientnet_b5_ns
         """
+        #--save_best_model \
 
 
 rule merge_train_data:
@@ -71,7 +73,7 @@ rule merge_train_data:
         "data/processed/all_data_labels.csv",
     shell:
         """
-        python -m src.merge_data --data {input[0]} {input[1]} \
+        python -m src.merge_data --data {input[0]} {input[1]} {input[2]}\
             --output {output[0]} \
         """
 

@@ -21,6 +21,7 @@ def predict(
     submission_path,
     batch_size,
     n_workers,
+    use_nfolds,
     device,
     logger,
 ):
@@ -32,7 +33,7 @@ def predict(
 
     checkpoint = torch.load(models_path)
     preds = []
-    for model_fold in checkpoint["folds"]:
+    for model_fold in checkpoint["folds"][:use_nfolds]:
         model = Model(model_name, pretrained=False)
         model.to(device)
         model.load_state_dict(checkpoint[model_fold]['model'])
@@ -56,6 +57,7 @@ def main():
     parser.add_argument("--device", type=str, default="cuda")
 
     parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--use_nfolds", type=int, default=1)
     parser.add_argument("--n_workers", type=int, default=6)
     # parser.add_argument("--quantile", type=float)
 
@@ -74,6 +76,7 @@ def main():
         args.submission_path,
         args.batch_size,
         args.n_workers,
+        args.use_nfolds,
         args.device,
         logger,
     )
