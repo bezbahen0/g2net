@@ -28,6 +28,13 @@ def set_seed(seed):
     np.random.seed(seed)
 
 
+def get_model(experiment, model_base_name, pretrained=False):
+    if experiment == "baseline":
+        return Model(model_base_name, pretrained=pretrained)
+    else:
+        raise NotImplementedError("Model not implemented")
+
+
 def evaluate(model, loader_val, device, *, compute_score=True, verbose=False):
     """
     Predict and compute loss and score
@@ -89,6 +96,7 @@ def evaluate(model, loader_val, device, *, compute_score=True, verbose=False):
 def train(
     data_path,
     data_csv_path,
+    experiment,
     model_name,
     nfold,
     epochs,
@@ -104,7 +112,6 @@ def train(
     freq_shift_rate,
     time_mask_num,
     freq_mask_num,
-    save_best_model,
     pretrained,
     device,
     logger,
@@ -144,7 +151,7 @@ def train(
         )
 
         # Model and optimizer
-        model = Model(model_name, pretrained=pretrained)
+        model = get_model(experiment, model_name, pretrained=pretrained)
         model.to(device)
         model.train()
 
@@ -217,11 +224,11 @@ def train(
             model_checkpoints[f"checkpoint_{iepoch}"] = {
                 "loss": loss_train,
                 "val_loss": val["loss"],
-                "score": "score",
+                "score": val["score"],
                 "model_params": model.state_dict(),
                 "oof_predictions": val["y_pred"],
                 "oof_targets": val["y"],
-                "epoch": iepoch
+                "epoch": iepoch,
             }
 
             logger.info(
@@ -233,10 +240,8 @@ def train(
 
         # Save fold model params
         fold_name = f"model_fold_{ifold}"
-        
-        models[f"model_fold_{ifold}"] = {
-            "checkpoints": model_checkpoints
-        }
+
+        models[f"model_fold_{ifold}"] = {"checkpoints": model_checkpoints}
 
         models["folds"].append(fold_name)
     return models
@@ -254,9 +259,9 @@ def main():
     parser.add_argument("--data_path", type=str)
     parser.add_argument("--data_csv_path", type=str)
     parser.add_argument("--model_save_path", type=str)
-    parser.add_argument("--model_type", type=str, default="tf_efficientnet_b5_ns")
-    parser.add_argument("--save_best_model", action="store_true", default=False)
-    parser.add_argument("--pretrained", action="store_true", default=False)
+    parser.add_argument("--experiment", type=str)
+    parser.add_argument("--model_base_type", type=str, default="tf_efficientnet_b5_ns")
+    parser.add_argument("--pretrained", type=int, default=0)
     parser.add_argument("--device", type=str, default="cuda")
 
     parser.add_argument("--nfold", type=int, default=5)
@@ -267,9 +272,9 @@ def main():
     parser.add_argument("--max_grad_norm", type=int, default=1000)
     parser.add_argument("--lr_max", type=float, default=4e-4)
     parser.add_argument("--epochs_warmup", type=float, default=1.0)
-    parser.add_argument("--random_state", type=float, default=42)
+    parser.add_argument("--random_state", type=int, default=42)
 
-    parser.add_argument("--augmentaion_train", action="store_true")
+    parser.add_argument("--augmentaion_train", type=int, default=1)
     parser.add_argument("--flip_rate", type=float, default=0.5)
     parser.add_argument("--freq_shift_rate", type=float, default=1.0)
     parser.add_argument("--time_mask_num", type=int, default=1)
@@ -286,7 +291,8 @@ def main():
     model = train(
         args.data_path,
         args.data_csv_path,
-        args.model_type,
+        args.experiment,
+        args.model_base_type,
         args.nfold,
         args.epochs,
         args.batch_size,
@@ -301,7 +307,6 @@ def main():
         args.freq_shift_rate,
         args.time_mask_num,
         args.freq_mask_num,
-        save_best_model=args.save_best_model,
         pretrained=args.pretrained,
         device=args.device,
         logger=logger,
@@ -309,7 +314,7 @@ def main():
     model = add_training_meta(model, args)
     torch.save(model, args.model_save_path)
 
-    logger.info(f"Save trained {args.model_type} model to {args.model_save_path}")
+    logger.info(f"Save trained {args.experiment} model to {args.model_save_path}")
 
 
 if __name__ == "__main__":

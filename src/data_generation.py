@@ -25,13 +25,11 @@ default_noise_kwargs = {
     "tstart": 1238170021,
     "duration": 4 * 30 * 86400,
     "Tsft": 1800,
-    # "Band": 1/5.01,
     "Band": 0.2,
     "SFTWindowType": "tukey",
     "SFTWindowBeta": 0.001,
     "sqrtSX": 1e-23,
     "detectors": "H1,L1",
-    # "F0": 100.0,  #np.random.uniform(51, 497)
 }
 
 
@@ -42,9 +40,9 @@ def set_random_seed(seed):
 
 
 def fill_labels(
-    output_path, output_csv_path, data_type, label_template, num_signals, target
+    output_path, output_csv_path, experiment, label_template, num_signals, target
 ):
-    id_ = [f"{data_type}/{label_template % i}" for i in range(num_signals)]
+    id_ = [f"{experiment}/{label_template % i}" for i in range(num_signals)]
 
     label_pure = pd.DataFrame(data=id_, columns=["id"])
     label_pure["target"] = target
@@ -104,13 +102,15 @@ def noise_sft_generation(label, tmp_dir):
 def noise_generation(
     output_path,
     output_csv_path,
-    data_type,
+    processing,
     num_signals,
     processing_function=None,
 ):
     label_template = "noise_%i"
 
-    fill_labels(output_path, output_csv_path, data_type, label_template, num_signals, 0)
+    fill_labels(
+        output_path, output_csv_path, processing, label_template, num_signals, 0
+    )
 
     for i in tqdm(range(num_signals), leave=False, desc="Noise generation"):
         label = label_template % i
@@ -121,13 +121,15 @@ def noise_generation(
 def signal_generation(
     output_path,
     output_csv_path,
-    data_type,
+    processing,
     num_signals,
     processing_function=None,
 ):
     label_template = "signal_%i"
 
-    fill_labels(output_path, output_csv_path, data_type, label_template, num_signals, 1)
+    fill_labels(
+        output_path, output_csv_path, processing, label_template, num_signals, 1
+    )
 
     for i in tqdm(range(num_signals), leave=False, desc="Signal generation"):
         label = label_template % i
@@ -136,12 +138,6 @@ def signal_generation(
 
         priors = {
             "F0": noise_kwargs["F0"],
-            # "F0": {
-            #    "uniform": {
-            #        "low": noise_kwargs["F0"] - noise_kwargs["Band"] / 2.0,
-            #        "high": noise_kwargs["F0"] + noise_kwargs["Band"] / 2.0,
-            #    }
-            # },
             "F1": -1e-10,
             "F2": 0,
             "h0": noise_kwargs["sqrtSX"] / 10,  # Fix amplitude at depth 10.
@@ -179,7 +175,7 @@ def main():
     parser.add_argument("--data_type", type=str)
     parser.add_argument("--num_signals", type=int)
     parser.add_argument("--processing", type=str, default=None)
-    parser.add_argument("--random_seed", type=int, default=42)
+    parser.add_argument("--random_state", type=int, default=42)
 
     args = parser.parse_args()
 
@@ -187,20 +183,26 @@ def main():
     logger.info("--DATA GENERATION--")
     logger.info(f"config arguments: {args}")
 
+    set_random_seed(args.random_state)
+
     processing = None
     if args.processing == "baseline":
         processing = processing_array
 
     if args.data_type == "generated_noise":
         noise_generation(
-            args.output, args.output_csv, args.data_type, args.num_signals, processing
+            args.output,
+            args.output_csv,
+            f"{args.data_type}_{args.processing}",
+            args.num_signals,
+            processing,
         )
 
     if args.data_type == "generated_signal":
         signal_generation(
             args.output,
             args.output_csv,
-            args.data_type,
+            f"{args.data_type}_{args.processing}",
             args.num_signals,
             processing,
         )

@@ -50,7 +50,7 @@ def processing_chunk(args):
         np.save(os.path.join(output_path, f"{file_id}.npy"), img)
 
 
-def processing_pool(
+def processing_baseline_pool(
     data_path, data_csv_path, mode, output_path, output_csv, n_workers, logger
 ):
     df = pd.read_csv(data_csv_path)
@@ -80,6 +80,7 @@ def main():
     parser.add_argument("--output_csv", type=str)
     parser.add_argument("--mode", type=str)
     parser.add_argument("--n_workers", type=int)
+    parser.add_argument("--processing_type", type=str, default="baseline")
 
     args = parser.parse_args()
 
@@ -87,15 +88,16 @@ def main():
     logger.info("--PROCESSING--")
     logger.info(f"config arguments: {args}")
 
-    processing_pool(
-        args.data,
-        args.data_csv,
-        args.mode,
-        args.output,
-        args.output_csv,
-        args.n_workers,
-        logger,
-    )
+    if args.processing_type == "baseline":
+        processing_baseline_pool(
+            args.data,
+            args.data_csv,
+            args.mode,
+            args.output,
+            args.output_csv,
+            args.n_workers,
+            logger,
+        )
 
 
 if __name__ == "__main__":
