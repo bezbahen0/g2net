@@ -17,6 +17,7 @@ from sklearn.model_selection import StratifiedKFold
 from .dataset import Dataset
 from .models.model import Model
 
+
 def set_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -25,6 +26,7 @@ def set_seed(seed):
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
     np.random.seed(seed)
+
 
 def evaluate(model, loader_val, device, *, compute_score=True, verbose=False):
     """
@@ -101,7 +103,7 @@ def train(
     flip_rate,
     freq_shift_rate,
     time_mask_num,
-    freq_mask_num,    
+    freq_mask_num,
     save_best_model,
     pretrained,
     device,
@@ -112,13 +114,21 @@ def train(
     df = pd.read_csv(data_csv_path)
     dataset = Dataset(data_path, df)
 
-    models = {"kfold": nfold, "folds": [], "epochs": epochs, "scores": []}
+    models = {"folds": []}
     for ifold, (idx_train, idx_test) in enumerate(kfold.split(dataset, df["target"])):
-        logger.info("Fold %d/%d" % (ifold, nfold))
+        logger.info(f"Fold {ifold}/{nfold}")
         torch.manual_seed(random_state + ifold + 1)
 
         # Train - val split
-        dataset_train = Dataset(data_path, df.iloc[idx_train], augmentaion_train, flip_rate, freq_shift_rate,time_mask_num,freq_mask_num)
+        dataset_train = Dataset(
+            data_path,
+            df.iloc[idx_train],
+            augmentaion_train,
+            flip_rate,
+            freq_shift_rate,
+            time_mask_num,
+            freq_mask_num,
+        )
         dataset_val = Dataset(data_path, df.iloc[idx_test])
 
         loader_train = torch.utils.data.DataLoader(
@@ -161,13 +171,10 @@ def train(
         time_val = 0.0
         lrs = []
 
-        train_losses = []
-        val_losses = []
-        scores = []
-        
+        model_checkpoints = {}
+
         tb = time.time()
         logger.info("Epoch   loss          score   lr")
-        all_models = {}
         for iepoch in range(epochs):
             loss_sum = 0.0
             n_sum = 0
@@ -207,48 +214,38 @@ def train(
 
             dt = time.time() - tb
 
-            train_losses.append(loss_train)
-            val_losses.append(val["loss"])
-            scores.append(val["score"])
+            model_checkpoints[f"checkpoint_{iepoch}"] = {
+                "loss": loss_train,
+                "val_loss": val["loss"],
+                "score": "score",
+                "model_params": model.state_dict(),
+                "oof_predictions": val["y_pred"],
+                "oof_targets": val["y"],
+                "epoch": iepoch
+            }
 
             logger.info(
-                "Epoch %d %.4f %.4f %.4f  %.2e  %.2f sec"
-                % (iepoch + 1, loss_train, val["loss"], val["score"], lr_now, dt)
+                f"Epoch {iepoch} {loss_train} {val['loss']} {val['score']}  {lr_now}  {dt} sec"
             )
-            all_models[val["loss"]] = model.state_dict()
 
         dt = time.time() - tb
-        logger.info("Training done %.2f sec total, %.2f sec val" % (dt, time_val))
+        logger.info(f"Training done {dt} sec total, {time_val} sec val")
 
         # Save fold model params
         fold_name = f"model_fold_{ifold}"
-        val = evaluate(model, loader_val, device)
-
+        
         models[f"model_fold_{ifold}"] = {
-            "model": all_models[min(val_losses)] if save_best_model else model.state_dict(),
-            "score": val["score"],
-            "loss": val["loss"],
-            "oof_predictions": val["y_pred"],
-            "off_targets": val["y"],
-            "train_loss_history": train_losses,
-            "val_loss_history": val_losses,
-            "scores": scores,
+            "checkpoints": model_checkpoints
         }
 
         models["folds"].append(fold_name)
-        models["scores"].append(val["score"])
-        del model, optimizer
-        torch.cuda.empty_cache()
-    mean_score = np.mean(list(all_models.keys()))if save_best_model else np.mean(models['scores'] )
-    logger.info(f"Average CV score: {mean_score}")
-    models["cv_score"] = mean_score
-
     return models
+
 
 def add_training_meta(model, args):
     config = vars(args)
-    model['config'] = config
-    model['write_time'] = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+    model["config"] = config
+    model["write_time"] = datetime.today().strftime("%Y-%m-%d %H:%M:%S")
     return model
 
 
@@ -258,8 +255,8 @@ def main():
     parser.add_argument("--data_csv_path", type=str)
     parser.add_argument("--model_save_path", type=str)
     parser.add_argument("--model_type", type=str, default="tf_efficientnet_b5_ns")
-    parser.add_argument("--save_best_model", action='store_true', default=False)
-    parser.add_argument("--pretrained", action='store_true', default=False)
+    parser.add_argument("--save_best_model", action="store_true", default=False)
+    parser.add_argument("--pretrained", action="store_true", default=False)
     parser.add_argument("--device", type=str, default="cuda")
 
     parser.add_argument("--nfold", type=int, default=5)
@@ -272,11 +269,11 @@ def main():
     parser.add_argument("--epochs_warmup", type=float, default=1.0)
     parser.add_argument("--random_state", type=float, default=42)
 
-    parser.add_argument("--augmentaion_train", action='store_true')
-    parser.add_argument("--flip_rate", type=float, default=0.5)   
-    parser.add_argument("--freq_shift_rate", type=float, default=1.0)   
-    parser.add_argument("--time_mask_num", type=int, default=1)   
-    parser.add_argument("--freq_mask_num", type=int, default=2)   
+    parser.add_argument("--augmentaion_train", action="store_true")
+    parser.add_argument("--flip_rate", type=float, default=0.5)
+    parser.add_argument("--freq_shift_rate", type=float, default=1.0)
+    parser.add_argument("--time_mask_num", type=int, default=1)
+    parser.add_argument("--freq_mask_num", type=int, default=2)
 
     args = parser.parse_args()
 
@@ -285,7 +282,7 @@ def main():
     logger.info(f"config arguments: {args}")
 
     set_seed(args.random_state)
-    
+
     model = train(
         args.data_path,
         args.data_csv_path,
