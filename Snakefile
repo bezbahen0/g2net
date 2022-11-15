@@ -15,8 +15,8 @@ rule all:
 
 rule test_model:
     input:
-        "data/processed/test",
-        "data/raw/g2net-detecting-continuous-gravitational-waves/sample_submission.csv",
+        f"data/processed/test_{experiment}",
+        f"data/raw/g2net-detecting-continuous-gravitational-waves/sample_submission.csv",
         f"data/trained_models/{model_name}.pt",
     output:
         f"data/submission/{submit_name}.csv",
