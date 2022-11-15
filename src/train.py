@@ -215,7 +215,7 @@ def train(
                 "Epoch %d %.4f %.4f %.4f  %.2e  %.2f sec"
                 % (iepoch + 1, loss_train, val["loss"], val["score"], lr_now, dt)
             )
-            all_models[val["score"]] = model.state_dict()
+            all_models[val["loss"]] = model.state_dict()
 
         dt = time.time() - tb
         logger.info("Training done %.2f sec total, %.2f sec val" % (dt, time_val))
@@ -225,7 +225,7 @@ def train(
         val = evaluate(model, loader_val, device)
 
         models[f"model_fold_{ifold}"] = {
-            "model": all_models[max(scores)] if save_best_model else model.state_dict(),
+            "model": all_models[min(val_losses)] if save_best_model else model.state_dict(),
             "score": val["score"],
             "loss": val["loss"],
             "oof_predictions": val["y_pred"],

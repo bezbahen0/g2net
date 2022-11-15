@@ -1,4 +1,4 @@
-sumbit_description = "baseline_with_noise_10000_noisedsignal_10000_random_F0_fixed_random_state_augmentations_1_fold_best_model"
+sumbit_description = "baseline_v3_val_loss_min"
 
 
 rule all:
