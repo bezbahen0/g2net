@@ -136,3 +136,4 @@ data/*
 .vscode
 .snakemake
 lang_count.txt
+PyFstat.cff

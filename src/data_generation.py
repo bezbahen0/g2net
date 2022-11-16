@@ -71,7 +71,7 @@ def save_hdf5(output_path, label, frequency, timestamps, fourier_data):
 
 def save_data(sftfilepath, output_path, label, processing_function):
     frequency, timestamps, fourier_data = get_sft_as_arrays(sftfilepath)
-
+    
     if processing_function is None:
         save_hdf5(output_path, label, frequency, timestamps, fourier_data)
     else:
@@ -140,7 +140,7 @@ def signal_generation(
             "F0": noise_kwargs["F0"],
             "F1": -1e-10,
             "F2": 0,
-            "h0": noise_kwargs["sqrtSX"] / 10,  # Fix amplitude at depth 10.
+            "h0": noise_kwargs["sqrtSX"] / 20,  # Fix amplitude at depth 10.
             **pyfstat.injection_parameters.isotropic_amplitude_priors,
             "tref": noise_kwargs["tstart"],
             "SFTWindowType": "tukey",

@@ -1,4 +1,4 @@
-submit_description = "val_loss_min"
+submit_description = "amplitude-fix-20_another"
 model_name = "baseline_v3"
 
 submit_name = model_name + "_" + submit_description
