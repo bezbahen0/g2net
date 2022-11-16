@@ -10,7 +10,12 @@ from pathlib import Path
 
 from multiprocessing import Pool
 
-def processing_array(output_path, filename, frequency, timestamps, fourier_data):
+
+def save_numpy(img, output_path, filename):
+    np.save(os.path.join(output_path, f"{filename}.npy"), img)
+
+
+def processing_baseline(fourier_data):
     img = np.empty((2, 360, 128), dtype=np.float32)
 
     for ch, s in enumerate(["H1", "L1"]):
@@ -20,10 +25,18 @@ def processing_array(output_path, filename, frequency, timestamps, fourier_data)
         p = np.mean(p.reshape(360, 128, 32), axis=2)  # compress 4096 -> 128
         img[ch] = p
 
-        np.save(os.path.join(output_path, f"{filename}.npy"), img)
+    return img
+
+
+def get_processing_function(processing_name):
+    if processing_name == "baseline":
+        return processing_baseline
+    else:
+        raise NotImplementedError("Preprocessing data function not implemented")
+
 
 def processing_chunk(args):
-    chunk_data, chunk_id, data_path, output_path, mode = args
+    chunk_data, chunk_id, data_path, output_path, mode, processing = args
 
     pbar = tqdm(
         chunk_data.iterrows(),
@@ -33,25 +46,27 @@ def processing_chunk(args):
         leave=False,
     )
 
+    processing_function = get_processing_function(processing)
+
     for id, (file_id, label) in pbar:
         y = np.float32(label)
-        img = np.empty((2, 360, 128), dtype=np.float32)
 
         filename = f"{data_path}/{file_id}.hdf5"
         with h5py.File(filename, "r") as f:
             g = f[file_id]
-            for ch, s in enumerate(["H1", "L1"]):
-                a = g[s]["SFTs"][:360, :4096] * 1e22  # Fourier coefficient complex64
-                p = a.real**2 + a.imag**2  # power
-                p /= np.mean(p)  # normalize
-                p = np.mean(p.reshape(360, 128, 32), axis=2)  # compress 4096 -> 128
-                img[ch] = p
-
-        np.save(os.path.join(output_path, f"{file_id}.npy"), img)
+            img = processing_function(g)
+            save_numpy(img, output_path, file_id)
 
 
-def processing_baseline_pool(
-    data_path, data_csv_path, mode, output_path, output_csv, n_workers, logger
+def processing_pool(
+    data_path,
+    data_csv_path,
+    mode,
+    output_path,
+    output_csv,
+    n_workers,
+    processing,
+    logger,
 ):
     df = pd.read_csv(data_csv_path)
     df = df[df.target >= 0]
@@ -60,13 +75,20 @@ def processing_baseline_pool(
 
     args = []
     for chunk_id, chunk_data in enumerate(np.array_split(df, n_workers)):
-        function_args = [chunk_data, chunk_id, data_path, output_path, mode]
+        function_args = [
+            chunk_data,
+            chunk_id,
+            data_path,
+            output_path,
+            mode,
+            processing,
+        ]
         args.append(function_args)
 
     pool = Pool(processes=n_workers)
     block = pool.map(processing_chunk, args)
 
-    df['id'] = df['id'].apply(lambda id: f'{mode}/{id}')
+    df["id"] = df["id"].apply(lambda id: f"{mode}/{id}")
     df.to_csv(output_csv)
 
 
@@ -80,7 +102,7 @@ def main():
     parser.add_argument("--output_csv", type=str)
     parser.add_argument("--mode", type=str)
     parser.add_argument("--n_workers", type=int)
-    parser.add_argument("--processing_type", type=str, default="baseline")
+    parser.add_argument("--processing", type=str, default="baseline")
 
     args = parser.parse_args()
 
@@ -88,16 +110,16 @@ def main():
     logger.info("--PROCESSING--")
     logger.info(f"config arguments: {args}")
 
-    if args.processing_type == "baseline":
-        processing_baseline_pool(
-            args.data,
-            args.data_csv,
-            args.mode,
-            args.output,
-            args.output_csv,
-            args.n_workers,
-            logger,
-        )
+    processing_pool(
+        args.data,
+        args.data_csv,
+        args.mode,
+        args.output,
+        args.output_csv,
+        args.n_workers,
+        args.processing,
+        logger,
+    )
 
 
 if __name__ == "__main__":

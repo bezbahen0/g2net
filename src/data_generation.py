@@ -18,7 +18,7 @@ from pathlib import Path
 import pyfstat
 from pyfstat.utils import get_sft_as_arrays
 
-from .processing import processing_array
+from .processing import get_processing_function, save_numpy
 
 
 default_noise_kwargs = {
@@ -69,21 +69,19 @@ def save_hdf5(output_path, label, frequency, timestamps, fourier_data):
     f.close()
 
 
-def save_data(sftfilepath, output_path, label, processing_function):
+def save_data(sftfilepath, output_path, label, processing):
     frequency, timestamps, fourier_data = get_sft_as_arrays(sftfilepath)
-    
-    if processing_function is None:
+   
+    if processing is None:
         save_hdf5(output_path, label, frequency, timestamps, fourier_data)
     else:
-        processing_function(output_path, label, frequency, timestamps, fourier_data)
+        processing_function = get_processing_function(processing)
+        array = processing_function(fourier_data)
+        save_numpy(array, output_path, label)
 
     for path in sftfilepath.split(";"):
         os.remove(path)
     gc.collect()
-
-
-def apply_random_augmentation():
-    pass
 
 
 def noise_sft_generation(label, tmp_dir):
@@ -102,33 +100,33 @@ def noise_sft_generation(label, tmp_dir):
 def noise_generation(
     output_path,
     output_csv_path,
+    output_dir_name,
     processing,
     num_signals,
-    processing_function=None,
 ):
     label_template = "noise_%i"
 
     fill_labels(
-        output_path, output_csv_path, processing, label_template, num_signals, 0
+        output_path, output_csv_path, output_dir_name, label_template, num_signals, 0
     )
 
     for i in tqdm(range(num_signals), leave=False, desc="Noise generation"):
         label = label_template % i
         writer, _ = noise_sft_generation(label, "/tmp/noise")
-        save_data(writer.sftfilepath, output_path, label, processing_function)
+        save_data(writer.sftfilepath, output_path, label, processing)
 
 
 def signal_generation(
     output_path,
     output_csv_path,
+    output_dir_name,
     processing,
     num_signals,
-    processing_function=None,
 ):
     label_template = "signal_%i"
 
     fill_labels(
-        output_path, output_csv_path, processing, label_template, num_signals, 1
+        output_path, output_csv_path, output_dir_name, label_template, num_signals, 1
     )
 
     for i in tqdm(range(num_signals), leave=False, desc="Signal generation"):
@@ -163,7 +161,7 @@ def signal_generation(
             os.remove(path)
         gc.collect()
 
-        save_data(writer.sftfilepath, output_path, label, processing_function)
+        save_data(writer.sftfilepath, output_path, label, processing)
 
 
 def main():
@@ -185,17 +183,13 @@ def main():
 
     set_random_seed(args.random_state)
 
-    processing = None
-    if args.processing == "baseline":
-        processing = processing_array
-
     if args.data_type == "generated_noise":
         noise_generation(
             args.output,
             args.output_csv,
             f"{args.data_type}_{args.processing}",
+            args.processing,
             args.num_signals,
-            processing,
         )
 
     if args.data_type == "generated_signal":
@@ -203,8 +197,8 @@ def main():
             args.output,
             args.output_csv,
             f"{args.data_type}_{args.processing}",
+            args.processing,
             args.num_signals,
-            processing,
         )
 
 
