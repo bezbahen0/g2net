@@ -1,11 +1,14 @@
-submit_description = "amplitude-fix-20_another"
-model_name = "baseline_v3"
-
-submit_name = model_name + "_" + submit_description
-experiment = "baseline"
+configfile: f"configs/large_kernel.yml"
 
 
-configfile: f"configs/{experiment}.yml"
+submit_description = ""
+model_name = config["model_name"] + "_" + submit_description
+
+model_featured = ""
+submit_description = submit_description + model_featured
+submit_name = config["model_name"] + "_" + submit_description
+
+experiment = config["processing"]
 
 
 rule all:
@@ -46,7 +49,7 @@ rule processing_test_data:
         "    --output_csv {output[1]} "
         "    --n_workers 1 "
         "    --mode test "
-        f"   --processing_type {experiment}"
+        f"   --processing {experiment}"
 
 
 rule train_model:
@@ -104,7 +107,7 @@ rule processing_train_data:
         "    --output_csv {output[1]} "
         "    --n_workers 1 "
         "    --mode train "
-        f"   --processing_type {experiment} "
+        f"   --processing {experiment} "
 
 
 rule generate_processed_signal_data:

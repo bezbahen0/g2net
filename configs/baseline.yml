@@ -1,6 +1,7 @@
 
 random_state: 42
 model_name: "baseline"
+processing: "baseline"
 
 # Testing
 use_best_models: 1 # True

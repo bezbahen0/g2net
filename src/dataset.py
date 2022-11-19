@@ -44,7 +44,7 @@ class Dataset(torch.utils.data.Dataset):
         r = self.df.iloc[i]
         y = np.float32(r.target)
         file_id = r.id
-        filename = f"{self.data_path}/{file_id}.npy"
+        filename = f"{self.data_path}/{file_id}.npz"
         img = np.load(filename)
 
         if self.augmentation:

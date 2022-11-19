@@ -15,7 +15,7 @@ from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold
 
 from .dataset import Dataset
-from .models.model import Model
+from .models.baseline import BaselineModel
 
 
 def set_seed(seed):
@@ -30,7 +30,7 @@ def set_seed(seed):
 
 def get_model(experiment, model_base_name, pretrained=False):
     if experiment == "baseline":
-        return Model(model_base_name, pretrained=pretrained)
+        return BaselineModel(model_base_name, pretrained=pretrained)
     else:
         raise NotImplementedError("Model not implemented")
 
@@ -155,7 +155,7 @@ def train(
         model.to(device)
         model.train()
 
-        optimizer = torch.optim.Adam(
+        optimizer = torch.optim.SGD(
             model.parameters(), lr=lr_max, weight_decay=weight_decay
         )
 

@@ -76,7 +76,7 @@ def save_data(sftfilepath, output_path, label, processing):
         save_hdf5(output_path, label, frequency, timestamps, fourier_data)
     else:
         processing_function = get_processing_function(processing)
-        array = processing_function(fourier_data)
+        array = processing_function(frequency, timestamps, fourier_data)
         save_numpy(array, output_path, label)
 
     for path in sftfilepath.split(";"):

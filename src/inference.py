@@ -8,7 +8,6 @@ import torch
 import pandas as pd
 import numpy as np
 
-from .models.model import Model
 from .dataset import Dataset
 from .train import evaluate, get_model
 
@@ -22,7 +21,7 @@ def get_best_model(fold_data):
 
 def get_last_model(fold_data):
     checkpoints_names = list(fold_data['checkpoints'].keys())
-    return fold_data['checkpoints'][checkpoints_names[:-1]]
+    return fold_data['checkpoints'][checkpoints_names[-1]]
 
 
 def predict(

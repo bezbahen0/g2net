@@ -2,20 +2,72 @@ import os
 import h5py
 import logging
 import argparse
+
+import torch
 import pandas as pd
 import numpy as np
 
 from tqdm import tqdm
 from pathlib import Path
 
+from scipy.stats import norm
 from multiprocessing import Pool
 
 
+def normalize(X):
+    X = (X[..., None].view(X.real.dtype) ** 2).sum(-1)
+    POS = int(X.size * 0.99903)
+    EXP = norm.ppf((POS + 0.4) / (X.size + 0.215))
+    scale = np.partition(X.flatten(), POS, -1)[POS]
+    X /= scale / EXP.astype(scale.dtype) ** 2
+    return X
+
+def rescale(input, H1, L1):
+    input = torch.from_numpy(input)
+    rescale = torch.tensor([[H1, L1]])
+    tta = torch.randn([1, *input.shape, 2], dtype=torch.float32).square_().sum(-1)
+    tta *= rescale[..., None, None] / 2
+    valid = ~torch.isnan(input)
+    tta[:, valid] = input[valid].float()
+    return tta
+
+
+def processing_large_kernel(frequency, timestamps, fourier_data):
+    astime = np.full([2, 360, 5760], np.nan, dtype=np.float32)
+    
+    HT = (
+        (np.asarray(timestamps["H1"]) / 1800)
+        .round()
+        .astype(np.int64)
+    )
+    LT = (
+        (np.asarray(timestamps["L1"]) / 1800)
+        .round()
+        .astype(np.int64)
+    )
+
+    MIN = min(HT.min(), LT.min())
+    HT -= MIN
+    LT -= MIN
+
+    H1 = normalize(np.asarray(fourier_data["H1"], np.complex128))
+    valid = HT < 5760
+    astime[0][:, HT[valid]] = H1[:360, valid]
+
+    L1 = normalize(np.asarray(fourier_data["L1"], np.complex128))
+    valid = LT < 5760
+    astime[1][:, LT[valid]] = L1[:360, valid]
+
+    return rescale(astime, H1.mean(), L1.mean())
+
+
 def save_numpy(img, output_path, filename):
-    np.save(os.path.join(output_path, f"{filename}.npy"), img)
+    #with gzip.GzipFile(os.path.join(output_path, f"{filename}.npz.gz"), "w") as f:
+    #    np.save(file=f, arr=img)
+    np.savez_compressed(os.path.join(output_path, f"{filename}.npz"), img)
 
 
-def processing_baseline(fourier_data):
+def processing_baseline(frequency, timestamps, fourier_data):
     img = np.empty((2, 360, 128), dtype=np.float32)
 
     for ch, s in enumerate(["H1", "L1"]):
@@ -31,6 +83,8 @@ def processing_baseline(fourier_data):
 def get_processing_function(processing_name):
     if processing_name == "baseline":
         return processing_baseline
+    elif processing_name == "large-kernel":
+        return processing_large_kernel
     else:
         raise NotImplementedError("Preprocessing data function not implemented")
 
@@ -54,7 +108,11 @@ def processing_chunk(args):
         filename = f"{data_path}/{file_id}.hdf5"
         with h5py.File(filename, "r") as f:
             g = f[file_id]
-            img = processing_function(g)
+            fourier_data = {"H1": g["H1"]["SFTs"], "L1": g["L1"]["SFTs"]}
+            frequency = g["frequency_Hz"]
+            timestamps = {"H1": g["H1"]["timestamps_GPS"], "L1": g["L1"]["timestamps_GPS"]}
+
+            img = processing_function(frequency, timestamps, fourier_data)
             save_numpy(img, output_path, file_id)
 
 
@@ -102,7 +160,7 @@ def main():
     parser.add_argument("--output_csv", type=str)
     parser.add_argument("--mode", type=str)
     parser.add_argument("--n_workers", type=int)
-    parser.add_argument("--processing", type=str, default="baseline")
+    parser.add_argument("--processing", type=str)
 
     args = parser.parse_args()
 
