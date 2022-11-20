@@ -16,7 +16,7 @@ from sklearn.model_selection import StratifiedKFold
 
 from .dataset import Dataset
 from .models.baseline import BaselineModel
-
+from .models.largekernel import LargeKernelModel
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -31,6 +31,8 @@ def set_seed(seed):
 def get_model(experiment, model_base_name, pretrained=False):
     if experiment == "baseline":
         return BaselineModel(model_base_name, pretrained=pretrained)
+    elif experiment == "large-kernel":
+        return LargeKernelModel(model_base_name, pretrained=pretrained)
     else:
         raise NotImplementedError("Model not implemented")
 
@@ -155,7 +157,7 @@ def train(
         model.to(device)
         model.train()
 
-        optimizer = torch.optim.SGD(
+        optimizer = torch.optim.Adam(
             model.parameters(), lr=lr_max, weight_decay=weight_decay
         )
 
@@ -187,13 +189,14 @@ def train(
             n_sum = 0
 
             # Train
-            for ibatch, (img, y) in enumerate(loader_train):
+            pbar = tqdm(loader_train, desc=f"Train epoch {iepoch}", total=len(loader_train))
+            for ibatch, (img, y) in enumerate(pbar):
                 n = y.size(0)
                 img = img.to(device)
                 y = y.to(device)
 
                 optimizer.zero_grad()
-
+                
                 y_pred = model(img)
                 loss = criterion(y_pred.view(-1), y)
 

@@ -6,28 +6,28 @@ processing: "large-kernel"
 # Testing
 use_best_models: 1 # True
 test_batch_size: 64
-use_nfolds: 5
+use_nfolds: 1
 
 # Training
 pretrained: 1 # True
 device: "cuda"
-nfold: 5
+nfold: 2
 batch_size: 14
 n_workers: 6
-epochs: 55
+epochs: 2
 weight_decay: 1e-6
 max_grad_norm: 1000
 lr_max: 4e-4
 epochs_warmup: 1.0
-model_base_type: "tf_efficientnet_b7_ns"
+model_base_type: "tf_efficientnetv2_b0"
 
 # Augmentations
-augmentaion_train: 1 # True
+augmentaion_train: 0 # True
 flip_rate: 0.5
 freq_shift_rate: 1.0
 time_mask_num: 3
 freq_mask_num: 1
 
 # Data generation
-num_signals: 500 
-num_noise: 500
+num_signals: 10000 
+num_noise: 10000

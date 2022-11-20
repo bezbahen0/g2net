@@ -45,8 +45,10 @@ class Dataset(torch.utils.data.Dataset):
         y = np.float32(r.target)
         file_id = r.id
         filename = f"{self.data_path}/{file_id}.npz"
-        img = np.load(filename)
-
+        with np.load(filename) as data:
+            img = data["arr_0"]
+        img = img.squeeze()
+        
         if self.augmentation:
             img = np.flip(img, axis=1).copy()
             img = np.flip(img, axis=2).copy()
@@ -58,5 +60,5 @@ class Dataset(torch.utils.data.Dataset):
 
             for _ in range(np.random.randint(low=0, high=self.freq_mask_num)):
                 img = self.transforms_freq_mask(img)
-
+        
         return img, y
