@@ -13,6 +13,8 @@ from pathlib import Path
 from scipy.stats import norm
 from multiprocessing import Pool
 
+from .config import Config
+
 
 def normalize(X):
     X = (X[..., None].view(X.real.dtype) ** 2).sum(-1)
@@ -21,6 +23,7 @@ def normalize(X):
     scale = np.partition(X.flatten(), POS, -1)[POS]
     X /= scale / EXP.astype(scale.dtype) ** 2
     return X
+
 
 def rescale(input, H1, L1):
     input = torch.from_numpy(input)
@@ -34,17 +37,9 @@ def rescale(input, H1, L1):
 
 def processing_large_kernel(frequency, timestamps, fourier_data):
     astime = np.full([2, 360, 5760], np.nan, dtype=np.float32)
-    
-    HT = (
-        (np.asarray(timestamps["H1"]) / 1800)
-        .round()
-        .astype(np.int64)
-    )
-    LT = (
-        (np.asarray(timestamps["L1"]) / 1800)
-        .round()
-        .astype(np.int64)
-    )
+
+    HT = (np.asarray(timestamps["H1"]) / 1800).round().astype(np.int64)
+    LT = (np.asarray(timestamps["L1"]) / 1800).round().astype(np.int64)
 
     MIN = min(HT.min(), LT.min())
     HT -= MIN
@@ -62,7 +57,7 @@ def processing_large_kernel(frequency, timestamps, fourier_data):
 
 
 def save_numpy(img, output_path, filename):
-    #with gzip.GzipFile(os.path.join(output_path, f"{filename}.npz.gz"), "w") as f:
+    # with gzip.GzipFile(os.path.join(output_path, f"{filename}.npz.gz"), "w") as f:
     #    np.save(file=f, arr=img)
     np.savez_compressed(os.path.join(output_path, f"{filename}.npz"), img)
 
@@ -80,6 +75,10 @@ def processing_baseline(frequency, timestamps, fourier_data):
     return img
 
 
+def processing_temp(frequency, timestamps, fourier_data):
+    return np.empty((2, 360, 128), dtype=np.float32)
+
+
 def get_processing_function(processing_name):
     if processing_name == "baseline":
         return processing_baseline
@@ -90,7 +89,7 @@ def get_processing_function(processing_name):
 
 
 def processing_chunk(args):
-    chunk_data, chunk_id, data_path, output_path, mode, processing = args
+    chunk_data, chunk_id, data_path, output_path, mode, config = args
 
     pbar = tqdm(
         chunk_data.iterrows(),
@@ -100,7 +99,7 @@ def processing_chunk(args):
         leave=False,
     )
 
-    processing_function = get_processing_function(processing)
+    processing_function = get_processing_function(config.processing)
 
     for id, (file_id, label) in pbar:
         y = np.float32(label)
@@ -110,7 +109,10 @@ def processing_chunk(args):
             g = f[file_id]
             fourier_data = {"H1": g["H1"]["SFTs"], "L1": g["L1"]["SFTs"]}
             frequency = g["frequency_Hz"]
-            timestamps = {"H1": g["H1"]["timestamps_GPS"], "L1": g["L1"]["timestamps_GPS"]}
+            timestamps = {
+                "H1": g["H1"]["timestamps_GPS"],
+                "L1": g["L1"]["timestamps_GPS"],
+            }
 
             img = processing_function(frequency, timestamps, fourier_data)
             save_numpy(img, output_path, file_id)
@@ -122,8 +124,7 @@ def processing_pool(
     mode,
     output_path,
     output_csv,
-    n_workers,
-    processing,
+    config,
     logger,
 ):
     df = pd.read_csv(data_csv_path)
@@ -132,18 +133,18 @@ def processing_pool(
     Path(output_path).mkdir(parents=True, exist_ok=True)
 
     args = []
-    for chunk_id, chunk_data in enumerate(np.array_split(df, n_workers)):
+    for chunk_id, chunk_data in enumerate(np.array_split(df, 1)):  # config.n_workers
         function_args = [
             chunk_data,
             chunk_id,
             data_path,
             output_path,
             mode,
-            processing,
+            config,
         ]
         args.append(function_args)
 
-    pool = Pool(processes=n_workers)
+    pool = Pool(processes=1)  # config.n_workers
     block = pool.map(processing_chunk, args)
 
     df["id"] = df["id"].apply(lambda id: f"{mode}/{id}")
@@ -159,14 +160,15 @@ def main():
     parser.add_argument("--output", type=str)
     parser.add_argument("--output_csv", type=str)
     parser.add_argument("--mode", type=str)
-    parser.add_argument("--n_workers", type=int)
-    parser.add_argument("--processing", type=str)
+    parser.add_argument("--config_path", type=str)
 
     args = parser.parse_args()
 
     logger = logging.getLogger(__name__)
     logger.info("--PROCESSING--")
-    logger.info(f"config arguments: {args}")
+
+    config = Config()
+    config.load_config(args.config_path, logger)
 
     processing_pool(
         args.data,
@@ -174,8 +176,7 @@ def main():
         args.mode,
         args.output,
         args.output_csv,
-        args.n_workers,
-        args.processing,
+        config,
         logger,
     )
 

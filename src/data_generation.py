@@ -5,7 +5,6 @@ import logging
 import argparse
 
 import h5py
-import random
 
 import pandas as pd
 import numpy as np
@@ -18,8 +17,8 @@ from pathlib import Path
 import pyfstat
 from pyfstat.utils import get_sft_as_arrays
 
+from .config import Config
 from .processing import get_processing_function, save_numpy
-
 
 default_noise_kwargs = {
     "tstart": 1238170021,
@@ -31,12 +30,6 @@ default_noise_kwargs = {
     "sqrtSX": 1e-23,
     "detectors": "H1,L1",
 }
-
-
-def set_random_seed(seed):
-    random.seed(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    np.random.seed(seed)
 
 
 def fill_labels(
@@ -101,35 +94,33 @@ def noise_generation(
     output_path,
     output_csv_path,
     output_dir_name,
-    processing,
-    num_signals,
+    config,
 ):
     label_template = "noise_%i"
 
     fill_labels(
-        output_path, output_csv_path, output_dir_name, label_template, num_signals, 0
+        output_path, output_csv_path, output_dir_name, label_template, config.num_noise, 0
     )
 
-    for i in tqdm(range(num_signals), leave=False, desc="Noise generation"):
+    for i in tqdm(range(config.num_noise), leave=False, desc="Noise generation"):
         label = label_template % i
         writer, _ = noise_sft_generation(label, "/tmp/noise")
-        save_data(writer.sftfilepath, output_path, label, processing)
+        save_data(writer.sftfilepath, output_path, label, config.processing)
 
 
 def signal_generation(
     output_path,
     output_csv_path,
     output_dir_name,
-    processing,
-    num_signals,
+    config
 ):
     label_template = "signal_%i"
 
     fill_labels(
-        output_path, output_csv_path, output_dir_name, label_template, num_signals, 1
+        output_path, output_csv_path, output_dir_name, label_template, config.num_signals, 1
     )
 
-    for i in tqdm(range(num_signals), leave=False, desc="Signal generation"):
+    for i in tqdm(range(config.num_signals), leave=False, desc="Signal generation"):
         label = label_template % i
 
         noise_writer, noise_kwargs = noise_sft_generation(label, "/tmp/signal")
@@ -161,7 +152,7 @@ def signal_generation(
             os.remove(path)
         gc.collect()
 
-        save_data(writer.sftfilepath, output_path, label, processing)
+        save_data(writer.sftfilepath, output_path, label, config.processing)
 
 
 def main():
@@ -171,34 +162,30 @@ def main():
     parser.add_argument("--output", type=str)
     parser.add_argument("--output_csv", type=str)
     parser.add_argument("--data_type", type=str)
-    parser.add_argument("--num_signals", type=int)
-    parser.add_argument("--processing", type=str, default=None)
-    parser.add_argument("--random_state", type=int, default=42)
-
+    parser.add_argument("--config_path", type=str)
+    
     args = parser.parse_args()
 
     logger = logging.getLogger(__name__)
     logger.info("--DATA GENERATION--")
-    logger.info(f"config arguments: {args}")
 
-    set_random_seed(args.random_state)
-
+    config = Config()
+    config.load_config(args.config_path, logger)
+    
     if args.data_type == "generated_noise":
         noise_generation(
             args.output,
             args.output_csv,
-            f"{args.data_type}_{args.processing}",
-            args.processing,
-            args.num_signals,
+            f"{args.data_type}_{config.processing}",
+            config
         )
 
     if args.data_type == "generated_signal":
         signal_generation(
             args.output,
             args.output_csv,
-            f"{args.data_type}_{args.processing}",
-            args.processing,
-            args.num_signals,
+            f"{args.data_type}_{config.processing}",
+            config
         )
 
 

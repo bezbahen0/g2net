@@ -2,14 +2,16 @@ import timm
 import torch.nn as nn
 
 class BaselineModel(nn.Module):
-    def __init__(self, name, *, pretrained=False):
+    def __init__(self, config):
         """
         name (str): timm model name, e.g. tf_efficientnet_b2_ns
         """
         super().__init__()
 
+        self.config = config
+        
         # Use timm
-        model = timm.create_model(name, pretrained=pretrained, in_chans=2)
+        model = timm.create_model(config.model_base_type, pretrained=config.pretrained, in_chans=2)
 
         clsf = model.default_cfg['classifier']
 

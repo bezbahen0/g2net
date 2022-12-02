@@ -9,57 +9,62 @@ import pandas as pd
 import numpy as np
 
 from .dataset import Dataset
-from .train import evaluate, get_model
+from .train import evaluate
+from .config import Config
 
 
 def get_best_model(fold_data):
-    checkpoints_names = list(fold_data['checkpoints'].keys())
-    scores = [fold_data['checkpoints'][checkpoint]["score"] for checkpoint in checkpoints_names]
+    checkpoints_names = list(fold_data["checkpoints"].keys())
+    scores = [
+        fold_data["checkpoints"][checkpoint]["score"]
+        for checkpoint in checkpoints_names
+    ]
     index_max = max(range(len(scores)), key=scores.__getitem__)
-    return fold_data['checkpoints'][checkpoints_names[index_max]]
+    return fold_data["checkpoints"][checkpoints_names[index_max]]
 
 
 def get_last_model(fold_data):
-    checkpoints_names = list(fold_data['checkpoints'].keys())
-    return fold_data['checkpoints'][checkpoints_names[-1]]
+    checkpoints_names = list(fold_data["checkpoints"].keys())
+    return fold_data["checkpoints"][checkpoints_names[-1]]
 
 
 def predict(
-    experiment,
-    model_base_type,
-    models_path,
+    dataset_loader_name,
     data_path,
     data_csv_path,
     submission_path,
-    batch_size,
-    n_workers,
-    use_nfolds,
-    use_best_model,
-    device,
+    config,
     logger,
 ):
     submit = pd.read_csv(data_csv_path)
-    dataset_test = Dataset(data_path, submit)
+    dataset_class = config.get_dataset_class()
+    dataset_test = dataset_class(data_path, submit)
     loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=batch_size, num_workers=n_workers, pin_memory=True
+        dataset_test,
+        batch_size=config.test_batch_size,
+        num_workers=config.n_workers,
+        pin_memory=True,
     )
 
     checkpoint = torch.load(models_path)
     preds = []
-    for model_fold in checkpoint["folds"][:use_nfolds]:
-        model = get_model(experiment, model_base_type, pretrained=False)
+    for model_fold in checkpoint["folds"][: config.use_nfolds]:
+        model = config.get_model_class()
+        model = model(config, pretrained=False)
 
         checkpoint_epoch = (
             get_best_model(checkpoint[model_fold])
-            if use_best_model
+            if config.use_best_model
             else get_last_model(checkpoint[model_fold])
         )
         model.load_state_dict(checkpoint_epoch["model_params"])
 
-        model.to(device)
+        model.to(config.device)
         model.eval()
 
-        test = evaluate(model, loader_test, device, compute_score=False, verbose=True)
+        test = evaluate(
+            model, loader_test, config.device, compute_score=False, verbose=True
+        )
         preds.append(test["y_pred"])
 
     submit["target"] = np.mean(preds, axis=0)
@@ -69,37 +74,25 @@ def predict(
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_base_type", type=str, default="tf_efficientnet_b5_ns")
-    parser.add_argument("--experiment", type=str)
     parser.add_argument("--data_path", type=str)
     parser.add_argument("--data_csv_path", type=str)
     parser.add_argument("--models_path", type=str)
     parser.add_argument("--submission_path", type=str)
-    parser.add_argument("--use_best_model", type=int)
-    parser.add_argument("--device", type=str, default="cuda")
-
-    parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--use_nfolds", type=int, default=1)
-    parser.add_argument("--n_workers", type=int, default=6)
+    parser.add_argument("--config_path", type=str)
 
     args = parser.parse_args()
 
     logger = logging.getLogger(__name__)
     logger.info("--INFERENCE MODEL--")
-    logger.info(f"config arguments: {args}")
+
+    config = Config()
+    config.load_config(args.config_path, logger)
 
     predict(
-        args.experiment,
-        args.model_base_type,
         args.models_path,
         args.data_path,
         args.data_csv_path,
         args.submission_path,
-        args.batch_size,
-        args.n_workers,
-        args.use_nfolds,
-        args.use_best_model,
-        args.device,
         logger,
     )
 

@@ -28,22 +28,23 @@ class LargeKernelLayer(nn.Conv2d):
 
 
 class LargeKernelModel(nn.Module):
-    def __init__(self, name, *, pretrained=False):
+    def __init__(self, config):
         """
         name (str): timm model name, e.g. tf_efficientnet_b2_ns
         """
         super().__init__()
 
+        self.config = config
         # Use timm
         self.model = create_model(
-            name,
-            pretrained=pretrained,
+            config.model_base_type,
+            pretrained=config.pretrained,
             in_chans=32,
             num_classes=2,
         )
 
         C, _, H, W = (16, 1, 31, 255)  # state_dict["conv_stem.2.weight"].shape
-        
+
         self.model.conv_stem = nn.Sequential(
             nn.Identity(),
             nn.AvgPool2d((1, 9), (1, 8), (0, 4), count_include_pad=False),
