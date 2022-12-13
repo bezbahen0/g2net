@@ -20,6 +20,8 @@ from pyfstat.utils import get_sft_as_arrays
 from .config import Config
 from .processing import get_processing_function, save_numpy
 
+logging.getLogger('pyfstat').setLevel(logging.ERROR)
+
 default_noise_kwargs = {
     "tstart": 1238170021,
     "duration": 4 * 30 * 86400,
@@ -68,9 +70,9 @@ def save_data(sftfilepath, output_path, label, processing):
     if processing is None:
         save_hdf5(output_path, label, frequency, timestamps, fourier_data)
     else:
-        processing_function = get_processing_function(processing)
+        processing_function, save_function = get_processing_function(processing)
         array = processing_function(frequency, timestamps, fourier_data)
-        save_numpy(array, output_path, label)
+        save_function(array, output_path, label)
 
     for path in sftfilepath.split(";"):
         os.remove(path)
@@ -129,7 +131,7 @@ def signal_generation(
             "F0": noise_kwargs["F0"],
             "F1": -1e-10,
             "F2": 0,
-            "h0": noise_kwargs["sqrtSX"] / 20,  # Fix amplitude at depth 10.
+            "h0": noise_kwargs["sqrtSX"] / config.sqrtsxdiv,  # 20.
             **pyfstat.injection_parameters.isotropic_amplitude_priors,
             "tref": noise_kwargs["tstart"],
             "SFTWindowType": "tukey",

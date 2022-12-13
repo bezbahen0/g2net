@@ -3,6 +3,7 @@ import h5py
 import logging
 import argparse
 
+import cv2
 import torch
 import pandas as pd
 import numpy as np
@@ -55,11 +56,26 @@ def processing_large_kernel(frequency, timestamps, fourier_data):
 
     return rescale(astime, H1.mean(), L1.mean())
 
+def processing_spectrogram(frequency, timestamps, fourier_data):
+    img = np.zeros((2, 360, 512))
+
+    for ch, s in enumerate(["H1", "L1"]):
+        a = np.abs(fourier_data[s][-360:, :])
+        a = a[:, :512 * 8].reshape(360, 512, 8).mean(axis=2)
+        a = (a - a.min())
+        img[ch] = a * 255 / (a.max())
+
+    return img
 
 def save_numpy(img, output_path, filename):
-    # with gzip.GzipFile(os.path.join(output_path, f"{filename}.npz.gz"), "w") as f:
-    #    np.save(file=f, arr=img)
     np.savez_compressed(os.path.join(output_path, f"{filename}.npz"), img)
+
+
+def save_png(img, output_path, filename):
+    output_dir_path = f"{output_path}/{filename}"
+    os.mkdir(output_dir_path)
+    cv2.imwrite(os.path.join(output_dir_path, f"H1.png"), img[0])
+    cv2.imwrite(os.path.join(output_dir_path, f"L1.png"), img[1])
 
 
 def processing_baseline(frequency, timestamps, fourier_data):
@@ -75,15 +91,13 @@ def processing_baseline(frequency, timestamps, fourier_data):
     return img
 
 
-def processing_temp(frequency, timestamps, fourier_data):
-    return np.empty((2, 360, 128), dtype=np.float32)
-
-
 def get_processing_function(processing_name):
     if processing_name == "baseline":
-        return processing_baseline
+        return processing_baseline, save_numpy
+    elif processing_name == "spectrogram":
+        return processing_spectrogram, save_png
     elif processing_name == "large-kernel":
-        return processing_large_kernel
+        return processing_large_kernel, save_numpy
     else:
         raise NotImplementedError("Preprocessing data function not implemented")
 
@@ -99,7 +113,7 @@ def processing_chunk(args):
         leave=False,
     )
 
-    processing_function = get_processing_function(config.processing)
+    processing_function, save_function = get_processing_function(config.processing)
 
     for id, (file_id, label) in pbar:
         y = np.float32(label)
@@ -115,7 +129,7 @@ def processing_chunk(args):
             }
 
             img = processing_function(frequency, timestamps, fourier_data)
-            save_numpy(img, output_path, file_id)
+            save_function(img, output_path, file_id)
 
 
 def processing_pool(

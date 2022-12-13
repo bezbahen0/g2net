@@ -1,5 +1,6 @@
 import os
 
+import cv2
 import torch
 import torchaudio
 
@@ -61,6 +62,50 @@ class Dataset(torch.utils.data.Dataset):
 
         return img, y
 
+class ImageDataset(Dataset):
+    def __init__(
+        self,
+        data_path,
+        df,
+        config,
+        augmentation=False,
+    ):
+        super().__init__(
+            data_path,
+            df,
+            config,
+            augmentation=False,
+        )
+
+    def __getitem__(self, i):
+        """
+        i (int): get ith data
+        """
+        r = self.df.iloc[i]
+        y = np.float32(r.target)
+        file_id = r.id
+        filename = f"{self.data_path}/{file_id}"
+        channels = []
+        for channel, channel_name in enumerate(["H1", "L1"]):
+            channels.append(cv2.imread(f"{filename}/{channel_name}.png")[:,:256])
+
+        img = np.stack(np.asarray(channels))
+        
+        if self.augmentation:
+            img = np.flip(img, axis=1).copy()
+            img = np.flip(img, axis=2).copy()
+            img = np.roll(
+                img, np.random.randint(low=0, high=img.shape[1]), axis=1
+            ).copy()
+
+            img = torch.from_numpy(img)
+            for _ in range(np.random.randint(low=0, high=self.time_mask_num)):
+                img = self.transforms_time_mask(img)
+
+            for _ in range(np.random.randint(low=0, high=self.freq_mask_num)):
+                img = self.transforms_freq_mask(img)
+
+        return img, y
 
 class DatasetAllSignal(Dataset):
     def __init__(
@@ -90,7 +135,7 @@ class DatasetAllSignal(Dataset):
             img = data["arr_0"]
 
         img = img.squeeze()
-        img = img[:, :, :128]
+        #img = img[:, :, :128]
 
         if self.augmentation:
             img = np.flip(img, axis=1).copy()
@@ -105,12 +150,10 @@ class DatasetAllSignal(Dataset):
 
             for _ in range(np.random.randint(low=0, high=self.freq_mask_num)):
                 img = self.transforms_freq_mask(img)
-        # img = torch.from_numpy(img)
-
-        # splited = torch.split(img, 128, 2)
-        # result = splited[0] #splited[:self.num_splits]
-        # result = torch.cat(result)
-        print(img.shape)
+        img = torch.from_numpy(img)
+        splited = torch.split(img, 128, 2)
+        result = splited[:self.num_splits]
+        result = torch.cat(result)
         return img, y
 
 
@@ -118,7 +161,7 @@ def get_dataset_class(dataset_name):
     if dataset_name == "baseline":
         return Dataset
     elif dataset_name == "spectrogram":
-        return Dataset
+        return ImageDataset
     elif dataset_name == "all-signal":
         return DatasetAllSignal
     else:

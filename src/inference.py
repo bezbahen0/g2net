@@ -8,9 +8,10 @@ import torch
 import pandas as pd
 import numpy as np
 
-from .dataset import Dataset
 from .train import evaluate
 from .config import Config
+from .models import get_model_class
+from .dataset import get_dataset_class
 
 
 def get_best_model(fold_data):
@@ -29,7 +30,7 @@ def get_last_model(fold_data):
 
 
 def predict(
-    dataset_loader_name,
+    models_path,
     data_path,
     data_csv_path,
     submission_path,
@@ -37,8 +38,8 @@ def predict(
     logger,
 ):
     submit = pd.read_csv(data_csv_path)
-    dataset_class = config.get_dataset_class()
-    dataset_test = dataset_class(data_path, submit)
+    dataset_class = get_dataset_class(config.dataset)
+    dataset_test = dataset_class(data_path, submit, config)
     loader_test = torch.utils.data.DataLoader(
         dataset_test,
         batch_size=config.test_batch_size,
@@ -49,12 +50,12 @@ def predict(
     checkpoint = torch.load(models_path)
     preds = []
     for model_fold in checkpoint["folds"][: config.use_nfolds]:
-        model = config.get_model_class()
-        model = model(config, pretrained=False)
+        model = get_model_class(config.model_name)
+        model = model(config)
 
         checkpoint_epoch = (
             get_best_model(checkpoint[model_fold])
-            if config.use_best_model
+            if config.use_best_models
             else get_last_model(checkpoint[model_fold])
         )
         model.load_state_dict(checkpoint_epoch["model_params"])
@@ -93,6 +94,7 @@ def main():
         args.data_path,
         args.data_csv_path,
         args.submission_path,
+        config,
         logger,
     )
 

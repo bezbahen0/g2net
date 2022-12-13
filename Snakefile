@@ -1,4 +1,4 @@
-config_path = "configs/spectrogram-all-signal.yml"
+config_path = "configs/spectrogram-extended.yml"
 
 
 configfile: config_path
@@ -86,10 +86,10 @@ rule processing_train_data:
         f"data/processed/train_labels_{processing}.csv",
     shell:
         "python -m src.processing --data {input[0]} "
-        "    --data_csv {input[1]} "
-        "    --output {output[0]} "
-        "    --output_csv {output[1]} "
-        f"   --mode train_{processing} "
+        "    --data_csv {input[1]}       "
+        "    --output {output[0]}        "
+        "    --output_csv {output[1]}    "
+        f"   --mode train_{processing}   "
         f"   --config_path {config_path} "
 
 
@@ -99,9 +99,9 @@ rule generate_processed_signal_data:
         f"data/processed/generated_signal_{processing}.csv",
     shell:
         "python -m src.data_generation --output {output[0]} "
-        "    --output_csv {output[1]} "
-        f"   --config_path {config_path} "
-        f"   --data_type generated_signal > /dev/null 2>&1 "
+        "    --output_csv {output[1]}     "
+        f"   --config_path {config_path}  "
+        f"   --data_type generated_signal "
         #" > /dev/null 2>&1  "
 
 
@@ -111,7 +111,6 @@ rule generate_processed_noise_data:
         f"data/processed/generated_noise_{processing}.csv",
     shell:
         "python -m src.data_generation --output {output[0]} "
-        "    --output_csv {output[1]} "
-        f"   --config_path {config_path}          "
-        f"   --data_type generated_noise > /dev/null 2>&1 "
-        # > /dev/null 2>&1 "
+        "    --output_csv {output[1]}    "
+        f"   --config_path {config_path} "
+        f"   --data_type generated_noise "

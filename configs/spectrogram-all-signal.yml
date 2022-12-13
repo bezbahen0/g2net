@@ -7,7 +7,7 @@ num_splits: 1
 
 # Testing
 use_best_models: 1 # True
-test_batch_size: 64
+test_batch_size: 128
 use_nfolds: 5
 
 # Training
@@ -33,3 +33,4 @@ freq_mask_num: 1
 # Data generation
 num_signals: 10000 
 num_noise: 10000
+sqrtsxdiv: 20

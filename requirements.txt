@@ -55,3 +55,4 @@ typing_extensions==4.4.0
 urllib3==1.26.12
 wrapt==1.14.1
 yte==1.5.1
+opencv-python
