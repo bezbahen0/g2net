@@ -4,6 +4,8 @@ model_name: "spectrogram"
 processing: "spectrogram"
 dataset: "spectrogram"
 
+input_size: 256
+
 # Testing
 use_best_models: 1 # True
 test_batch_size: 128

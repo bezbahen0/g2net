@@ -76,6 +76,7 @@ class ImageDataset(Dataset):
             config,
             augmentation=False,
         )
+        self.img_size = config.input_size
 
     def __getitem__(self, i):
         """
@@ -87,10 +88,10 @@ class ImageDataset(Dataset):
         filename = f"{self.data_path}/{file_id}"
         channels = []
         for channel, channel_name in enumerate(["H1", "L1"]):
-            channels.append(cv2.imread(f"{filename}/{channel_name}.png")[:,:256])
+            channels.append(cv2.imread(f"{filename}/{channel_name}.png")[:,:self.img_size])
 
         img = np.stack(np.asarray(channels))
-        
+
         if self.augmentation:
             img = np.flip(img, axis=1).copy()
             img = np.flip(img, axis=2).copy()
