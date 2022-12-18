@@ -8,6 +8,7 @@ dataset: "baseline"
 use_best_models: 1 # True
 test_batch_size: 64
 use_nfolds: 5
+score_bust: 0
 
 # Training
 pretrained: 1 # True

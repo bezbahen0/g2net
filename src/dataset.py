@@ -88,10 +88,10 @@ class ImageDataset(Dataset):
         filename = f"{self.data_path}/{file_id}"
         channels = []
         for channel, channel_name in enumerate(["H1", "L1"]):
-            channels.append(cv2.imread(f"{filename}/{channel_name}.png")[:,:self.img_size])
+            channels.append(cv2.imread(f"{filename}/{channel_name}.png", cv2.IMREAD_GRAYSCALE)[:,:self.img_size])
 
-        img = np.stack(np.asarray(channels))
-
+        img = np.stack(np.asarray(channels)) / 255.0
+        
         if self.augmentation:
             img = np.flip(img, axis=1).copy()
             img = np.flip(img, axis=2).copy()
@@ -105,7 +105,7 @@ class ImageDataset(Dataset):
 
             for _ in range(np.random.randint(low=0, high=self.freq_mask_num)):
                 img = self.transforms_freq_mask(img)
-
+        img = torch.from_numpy(img).float()
         return img, y
 
 class DatasetAllSignal(Dataset):

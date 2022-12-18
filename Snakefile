@@ -1,11 +1,11 @@
-config_path = "configs/spectrogram-extended.yml"
+config_path = "configs/spectrogram-baseline.yml"
 
 
 configfile: config_path
 
 
 # Trained model name
-model_description = "spectrogramm+large-kernel-proc"
+model_description = f"-{config['sqrtsxdiv']}-{config['input_size']}-{config['model_base_type']}-{config['epochs']}"
 model_name = config["model_name"] + "_" + model_description
 
 # Submit name
@@ -68,12 +68,14 @@ rule train_model:
 rule merge_train_data:
     input:
         f"data/processed/train_labels_{processing}.csv",
-        f"data/processed/generated_noise_{processing}.csv",
-        f"data/processed/generated_signal_{processing}.csv",
+        f"data/processed/generated_noise_{processing}_{config['num_noise']}_{config['sqrtsxdiv']}.csv",
+        f"data/processed/generated_signal_{processing}_{config['num_signals']}_{config['sqrtsxdiv']}.csv",
+        #f"data/processed/generated_signal_baseline_10000_26.5.csv",
+        #f"data/processed/generated_noise_baseline_10000_26.5.csv"
     output:
         f"data/processed/all_data_labels_{processing}.csv",
     shell:
-        "python -m src.merge_data --data {input[0]} {input[1]} {input[2]} "
+        "python -m src.merge_data --data {input[0]} {input[1]} {input[2]} " #{input[3]} {input[4]}"
         "    --output {output[0]}  "
 
 
@@ -95,8 +97,8 @@ rule processing_train_data:
 
 rule generate_processed_signal_data:
     output:
-        directory(f"data/processed/generated_signal_{processing}"),
-        f"data/processed/generated_signal_{processing}.csv",
+        directory(f"data/processed/generated_signal_{processing}_{config['num_noise']}_{config['sqrtsxdiv']}"),
+        f"data/processed/generated_signal_{processing}_{config['num_noise']}_{config['sqrtsxdiv']}.csv",
     shell:
         "python -m src.data_generation --output {output[0]} "
         "    --output_csv {output[1]}     "
@@ -107,8 +109,8 @@ rule generate_processed_signal_data:
 
 rule generate_processed_noise_data:
     output:
-        directory(f"data/processed/generated_noise_{processing}"),
-        f"data/processed/generated_noise_{processing}.csv",
+        directory(f"data/processed/generated_noise_{processing}_{config['num_noise']}_{config['sqrtsxdiv']}"),
+        f"data/processed/generated_noise_{processing}_{config['num_noise']}_{config['sqrtsxdiv']}.csv",
     shell:
         "python -m src.data_generation --output {output[0]} "
         "    --output_csv {output[1]}    "

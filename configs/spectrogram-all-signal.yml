@@ -9,6 +9,7 @@ num_splits: 1
 use_best_models: 1 # True
 test_batch_size: 128
 use_nfolds: 5
+score_bust: 0
 
 # Training
 pretrained: 1 # True

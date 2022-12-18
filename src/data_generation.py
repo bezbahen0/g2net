@@ -178,7 +178,7 @@ def main():
         noise_generation(
             args.output,
             args.output_csv,
-            f"{args.data_type}_{config.processing}",
+            f"{args.data_type}_{config.processing}_{config.num_noise}_{config.sqrtsxdiv}",
             config
         )
 
@@ -186,7 +186,7 @@ def main():
         signal_generation(
             args.output,
             args.output_csv,
-            f"{args.data_type}_{config.processing}",
+            f"{args.data_type}_{config.processing}_{config.num_signals}_{config.sqrtsxdiv}",
             config
         )
 
