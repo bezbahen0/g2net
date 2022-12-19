@@ -57,13 +57,14 @@ def processing_large_kernel(frequency, timestamps, fourier_data):
     return rescale(astime, H1.mean(), L1.mean())
 
 def processing_spectrogram(frequency, timestamps, fourier_data):
-    img = np.zeros((2, 360, 256))
+    img = np.empty((2, 360, 256), dtype=np.float32)
 
     for ch, s in enumerate(["H1", "L1"]):
-        a = fourier_data[s][:360, :256*16] * 1e22
-        a = a.real**2 + a.imag**2  # power
-        a = a.reshape(360, 256, 16).mean(axis=2)
-        img[ch] = a
+        a = fourier_data[s][:360, :256*16] * 1e22  # Fourier coefficient complex64
+        p = a.real**2 + a.imag**2  # power
+        p /= np.mean(p)  # normalize
+        p = np.mean(p.reshape(360, 256, 16), axis=2) 
+        img[ch] = p
 
     return img
 

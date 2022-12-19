@@ -1,14 +1,14 @@
 
 random_state: 42
 model_name: "spectrogram"
-processing: "baseline"
+processing: "spectrogram"
 dataset: "baseline"
 
-input_size: 128
+input_size: 256
 
 # Testing
 use_best_models: 1 # True
-test_batch_size: 256
+test_batch_size: 128
 use_nfolds: 5
 score_bust: 0
 
@@ -16,7 +16,7 @@ score_bust: 0
 pretrained: 1 # True
 device: "cuda"
 nfold: 5
-batch_size: 86
+batch_size: 42
 n_workers: 6
 epochs: 5
 weight_decay: 1.0e-6
