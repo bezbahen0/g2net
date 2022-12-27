@@ -122,7 +122,7 @@ def train(
         model = model(config)
         model.to(config.device)
         model.train()
- 
+
         optimizer = torch.optim.Adam(
             model.parameters(), lr=config.lr_max, weight_decay=config.weight_decay
         )
@@ -142,6 +142,13 @@ def train(
             t_initial=(nsteps - warmup),
             lr_min=1e-6,
         )  # 3 epochs of cosine
+
+        #scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        #    optimizer=optimizer,
+        #    max_lr=config.lr_max,
+        #    total_steps=len(dataset_train) * config.epochs,
+        #    pct_start=config.once_cycle_pct_start,
+        #)
 
         time_val = 0.0
         lrs = []
@@ -200,7 +207,10 @@ def train(
                 "oof_predictions": val["y_pred"],
                 "oof_targets": val["y"],
                 "epoch": iepoch,
+                "epoch_lr": lr_now,
             }
+
+            torch.save(model_checkpoints, f"/tmp/model_fold_{ifold}_checkpoints.pt")
 
             logger.info(
                 f"Epoch {iepoch} {loss_train} {val['loss']} {val['score']}  {lr_now}  {dt} sec"

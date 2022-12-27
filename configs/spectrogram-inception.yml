@@ -1,6 +1,6 @@
 
 random_state: 42
-model_name: "spectrogram"
+model_name: "spectrogram_v2"
 processing: "baseline"
 dataset: "baseline"
 
@@ -8,7 +8,7 @@ input_size: 128
 
 # Testing
 use_best_models: 1 # True
-test_batch_size: 128
+test_batch_size: 256
 use_nfolds: 5
 score_bust: 0
 
@@ -16,14 +16,15 @@ score_bust: 0
 pretrained: 1 # True
 device: "cuda"
 nfold: 5
-batch_size: 14
+batch_size: 86
 n_workers: 6
 epochs: 5
 weight_decay: 1.0e-6
 max_grad_norm: 1000
-lr_max: 4.0e-4
+lr_max: 5.6e-4
 epochs_warmup: 1.0
-model_base_type: "tf_efficientnet_b7_ns"
+dropout: 0.25
+model_base_type: "inception_v4"
 
 # Augmentations
 augmentaion_train: 1 # True

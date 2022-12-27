@@ -12,7 +12,7 @@ class BaselineModel(nn.Module):
         
         # Use timm
         model = timm.create_model(config.model_base_type, pretrained=config.pretrained, in_chans=2)
-
+        
         clsf = model.default_cfg['classifier']
 
         
@@ -33,3 +33,5 @@ class BaselineModel(nn.Module):
     def forward(self, x):
         x = self.cnn(x)
         return x
+
+

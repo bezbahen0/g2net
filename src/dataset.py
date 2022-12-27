@@ -3,10 +3,16 @@ import os
 import cv2
 import torch
 import torchaudio
+import torchvision
 
 import numpy as np
 import pandas as pd
 
+def get_transforms():
+    return torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=0.5, std=0.1)
+        ])
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(
@@ -30,6 +36,7 @@ class Dataset(torch.utils.data.Dataset):
         self.transforms_freq_mask = torch.nn.Sequential(
             torchaudio.transforms.FrequencyMasking(freq_mask_param=10),
         )
+        self.transforms = get_transforms()
 
     def __len__(self):
         return len(self.df)
@@ -42,16 +49,30 @@ class Dataset(torch.utils.data.Dataset):
         y = np.float32(r.target)
         file_id = r.id
         filename = f"{self.data_path}/{file_id}.npz"
-        with np.load(filename) as data:
-            img = data["arr_0"]
+        if os.path.exists(filename): 
+            with np.load(filename) as data:
+                img = data["arr_0"]
+        else:
+            filename = f"{self.data_path}/{file_id}.npy"
+            img = np.load(filename)
+            
         img = img.squeeze()
+        #img = self.transforms(img)
+        #img = img.permute((1, 2, 0)).numpy()
+        #print(img.shape)
 
         if self.augmentation:
-            img = np.flip(img, axis=1).copy()
-            img = np.flip(img, axis=2).copy()
-            img = np.roll(
-                img, np.random.randint(low=0, high=img.shape[1]), axis=1
-            ).copy()
+            if np.random.rand() <= self.flip_rate: # horizontal flip
+                img = np.flip(img, axis=1).copy()
+            if np.random.rand() <= self.flip_rate: # vertical flip
+                img = np.flip(img, axis=2).copy()
+            if np.random.rand() <= self.freq_shift_rate: # vertical shift
+                img = np.roll(img, np.random.randint(low=0, high=img.shape[1]), axis=1).copy()
+            #img = np.flip(img, axis=1).copy()
+            #img = np.flip(img, axis=2).copy()
+            #img = np.roll(
+            #    img, np.random.randint(low=0, high=img.shape[1]), axis=1
+            #).copy()
 
             img = torch.from_numpy(img)
             for _ in range(np.random.randint(low=0, high=self.time_mask_num)):

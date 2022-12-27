@@ -56,6 +56,22 @@ def processing_large_kernel(frequency, timestamps, fourier_data):
 
     return rescale(astime, H1.mean(), L1.mean())
 
+def processing_spectrogram_v2(frequency, timestamps, fourier_data):
+    img = np.empty((2, 360, 256), dtype=np.uint8)
+
+    for ch, s in enumerate(["H1", "L1"]):
+        data = np.absolute(fourier_data[s][:360, :256*16])
+        data = data.reshape(360, 256, -1).mean(axis=2)
+        mean, std = np.mean(data), np.std(data.astype(np.float64))
+
+        data = data - mean
+        data = data / std / 5 # 5 sigma
+        data *= 128 
+        data += 128
+        data = np.clip(data, 0, 255).astype(np.uint8)
+        img[ch] = data
+    return img
+
 def processing_spectrogram(frequency, timestamps, fourier_data):
     img = np.empty((2, 360, 256), dtype=np.float32)
 
@@ -97,6 +113,8 @@ def get_processing_function(processing_name):
         return processing_baseline, save_numpy
     elif processing_name == "spectrogram":
         return processing_spectrogram, save_numpy
+    elif processing_name == "spectrogram_v2":
+        return processing_spectrogram_v2, save_numpy
     elif processing_name == "large-kernel":
         return processing_large_kernel, save_numpy
     else:

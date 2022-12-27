@@ -1,14 +1,14 @@
 
 random_state: 42
-model_name: "spectrogram"
-processing: "spectrogram"
-dataset: "spectrogram"
+model_name: "spectrogram_v2"
+processing: "spectrogram_v2"
+dataset: "baseline"
 
 input_size: 256
 
 # Testing
 use_best_models: 1 # True
-test_batch_size: 256
+test_batch_size: 128
 use_nfolds: 5
 score_bust: 0
 
@@ -21,8 +21,9 @@ n_workers: 6
 epochs: 5
 weight_decay: 1.0e-6
 max_grad_norm: 1000
-lr_max: 4.0e-4
+lr_max: 5.6e-4
 epochs_warmup: 1.0
+dropout: 0.25
 model_base_type: "inception_v4"
 
 # Augmentations
@@ -35,4 +36,4 @@ freq_mask_num: 1
 # Data generation
 num_signals: 10000
 num_noise: 10000
-sqrtsxdiv: 26.5
+sqrtsxdiv: 30

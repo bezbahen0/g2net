@@ -1,6 +1,6 @@
 
 random_state: 42
-model_name: "spectrogram"
+model_name: "spectrogram_v2"
 processing: "baseline"
 dataset: "baseline"
 
@@ -20,9 +20,11 @@ batch_size: 14
 n_workers: 6
 epochs: 5
 weight_decay: 1.0e-6
-max_grad_norm: 1000
-lr_max: 4.0e-4
+max_grad_norm: 1.36
+lr_max: 5.6e-4
 epochs_warmup: 1.0
+dropout: 0.25
+once_cycle_pct_start: 0.1
 model_base_type: "tf_efficientnet_b7_ns"
 
 # Augmentations
